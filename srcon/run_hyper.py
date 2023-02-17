@@ -24,11 +24,14 @@ def get_args():
     parser.add_argument("--xi-coef", type=float, default=0.01)
     parser.add_argument("--norm-coef", type=float, default=0.01)
     parser.add_argument("--hidden-sizes", type=int, nargs="+", default=[32])
-    parser.add_argument("--eval-freq", type=int, default=100)
-    parser.add_argument("--update-freq", type=int, default=10)
+    parser.add_argument("--update-freq", type=int, default=1)
     parser.add_argument("--update-num", type=int, default=10)
     parser.add_argument("--learning-start", type=int, default=100)
-    parser.add_argument("--logdir", type=str, default="./results/srcon")
+    parser.add_argument("--action-num", type=int, default=10)
+    parser.add_argument("--action-lr", type=float, default=0.001)
+    parser.add_argument("--action-max-update", type=int, default=1000)
+    parser.add_argument("--log-freq", type=int, default=100)
+    parser.add_argument("--log-dir", type=str, default="./results/srcon")
     args = parser.parse_known_args()[0]
     return args
 
@@ -38,7 +41,7 @@ set_seed(args.seed)
 
 # create logger
 dir = f"{args.dataset}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
-path = os.path.expanduser(os.path.join(args.logdir, args.dataset, dir))
+path = os.path.expanduser(os.path.join(args.log_dir, args.dataset, dir))
 os.makedirs(path, exist_ok=True)
 logger = configure(path)
 dump_params(logger, vars(args))
@@ -57,24 +60,31 @@ model = HyperSolution(
     norm_coef=args.norm_coef,
     target_noise_coef=args.xi_coef,
     buffer_size=args.time_period,
+    action_num=args.action_num,
+    action_lr=args.action_lr,
+    action_max_update=args.action_max_update,
 )
 
 update_num = 0
 update_results = {}
+reward_list = []
 for t in range(1, args.time_period + 1):
     # collect data
-    x = np.random.rand(args.d_theta)
-    x = bound_point(x)
+    if t >= args.learning_start:
+        x = model.select_action()
+    else:
+        x = np.random.rand(args.d_theta)
     y_true = objective.call(x)
+    reward_list.append(y_true)
     data = {"x": x, "y": y_true / 1000}
     model.put(data)
     # update model
-    if t % args.update_freq == 0 or t >= args.learning_start:
+    if t % args.update_freq == 0 and t >= args.learning_start:
         for _ in range(args.update_num):
             update_results = model.update()
             update_num += 1
-    # evaluate model
-    if t % args.eval_freq == 0 or t == 1:
+    if t % args.log_freq == 0 or t == 1:
+        # evaluate model
         error_list = []
         for _ in range(10):
             x = np.random.rand(args.d_theta)
@@ -87,6 +97,7 @@ for t in range(1, args.time_period + 1):
         # log data
         logger.record("time_step", t)
         logger.record("error", error)
+        logger.record("reward", reward_list[-1])
         logger.record(f"update_num", update_num)
         for key, val in update_results.items():
             logger.record(key, val)

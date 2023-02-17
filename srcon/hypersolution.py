@@ -1,4 +1,5 @@
 import os
+import copy
 import random as rd
 import numpy as np
 import torch
@@ -312,6 +313,9 @@ class HyperSolution:
         norm_coef: float = 0.01,
         target_noise_coef: float = 0.01,
         buffer_size: int = 10000,
+        action_num: int = 10,
+        action_lr: float = 0.01,
+        action_max_update: int = 1000,
     ):
 
         self.noise_dim = noise_dim
@@ -326,6 +330,10 @@ class HyperSolution:
         self.target_noise_coef = target_noise_coef
         self.buffer_size = buffer_size
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.action_num = action_num
+        self.action_lr = action_lr
+        self.action_max_update = action_max_update
 
         self.__init_model_optimizer()
         self.__init_buffer()
@@ -406,6 +414,27 @@ class HyperSolution:
 
     def reset(self):
         self.__init_model_optimizer()
+
+    def select_action(self):
+        # init actions
+        actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
+        actions = torch.from_numpy(actions).to(self.device)
+        actions.requires_grad = True
+        noise = self.generate_noise(actions.shape[0]) # sample noise
+        model = copy.deepcopy(self.model)
+        model.requires_grad = False
+        optim = torch.optim.Adam([actions], lr=self.action_lr)
+        # optimze actions
+        for _ in range(self.action_max_update):
+            out = model(noise, actions)
+            out = -out.mean()
+            optim.zero_grad()
+            out.backward()
+            optim.step()
+            with torch.no_grad():
+                actions = bound_point(actions)
+        actions = actions.detach().cpu().numpy()
+        return np.max(actions, 0)
 
     def save_model(self, save_path):
         torch.save(self.model.state_dict(), os.path.join(save_path, "model.pth"))
