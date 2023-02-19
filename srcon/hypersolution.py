@@ -420,7 +420,7 @@ class HyperSolution:
         actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
         actions = torch.from_numpy(actions).to(self.device)
         actions.requires_grad = True
-        noise = self.generate_noise(actions.shape[0]) # sample noise
+        noise = self.generate_noise(actions.shape[0])  # sample noise
         model = copy.deepcopy(self.model)
         model.requires_grad = False
         optim = torch.optim.Adam([actions], lr=self.action_lr)
@@ -433,8 +433,11 @@ class HyperSolution:
             optim.step()
             with torch.no_grad():
                 actions = bound_point(actions)
+        out = model(noise, actions)
+        out = out.detach().cpu().numpy()
+        act_index = rd_argmax(out)
         actions = actions.detach().cpu().numpy()
-        return np.max(actions, 0)
+        return actions[act_index]
 
     def save_model(self, save_path):
         torch.save(self.model.state_dict(), os.path.join(save_path, "model.pth"))
