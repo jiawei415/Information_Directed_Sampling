@@ -669,7 +669,7 @@ class Logger:
 
 
 def configure(
-    folder: Optional[str] = None, format_strings: Optional[List[str]] = None
+    folder: Optional[str] = None, format_strings: Optional[List[str]] = None, log_suffix: Optional[str] = ""
 ) -> Logger:
     """
     Configure the current logger.
@@ -689,7 +689,7 @@ def configure(
     assert isinstance(folder, str)
     os.makedirs(folder, exist_ok=True)
 
-    log_suffix = ""
+    # log_suffix = ""
     if format_strings is None:
         format_strings = os.getenv("LOG_FORMAT", "stdout,log,csv").split(",")
 
