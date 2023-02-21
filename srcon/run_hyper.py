@@ -51,12 +51,13 @@ def plotReward(title, path, log=False):
     y_data = np.array(y_data)
     x = x_data[0]
     y = y_data.mean(0)
-    low_CI_bound, high_CI_bound = st.t.interval(
-        0.95, len(y_data[0]) - 1, loc=y, scale=st.sem(y_data)
-    )
     plt.figure(figsize=(10, 8), dpi=80)
     plt.plot(x, y, label="hypermodel")
-    plt.fill_between(x, low_CI_bound, high_CI_bound, alpha=0.2)
+    if y_data.shape[0] > 1:
+        low_CI_bound, high_CI_bound = st.t.interval(
+            0.95, len(y_data[0]) - 1, loc=y, scale=st.sem(y_data)
+        )
+        plt.fill_between(x, low_CI_bound, high_CI_bound, alpha=0.2)
     if log:
         plt.yscale("log")
     plt.grid(color="grey", linestyle="--", linewidth=0.5)
