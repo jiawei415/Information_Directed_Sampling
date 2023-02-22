@@ -20,17 +20,18 @@ def get_args():
         choices=["korea", "chengdu", "hanjiang", "nandong"],
     )
     parser.add_argument("--seed", type=int, default=2023)
-    parser.add_argument("--n-exp", type=int, default=5)
-    parser.add_argument("--time-period", type=int, default=10000)
+    parser.add_argument("--n-exp", type=int, default=3)
+    parser.add_argument("--debug", type=int, default=0, choices=[0, 1])
+    parser.add_argument("--time-period", type=int, default=int(1e6))
     parser.add_argument("--d-index", type=int, default=16)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--xi-coef", type=float, default=0.01)
     parser.add_argument("--norm-coef", type=float, default=0.01)
-    parser.add_argument("--hidden-sizes", type=int, nargs="+", default=[64])
+    parser.add_argument("--hidden-sizes", type=int, nargs="+", default=[128])
     parser.add_argument("--update-freq", type=int, default=1)
-    parser.add_argument("--update-num", type=int, default=10)
-    parser.add_argument("--learning-start", type=int, default=100)
+    parser.add_argument("--update-num", type=int, default=100)
+    parser.add_argument("--learning-start", type=int, default=2000)
     parser.add_argument("--action-num", type=int, default=10)
     parser.add_argument("--action-lr", type=float, default=0.001)
     parser.add_argument("--action-max-update", type=int, default=1000)
@@ -38,6 +39,33 @@ def get_args():
     parser.add_argument("--log-dir", type=str, default="./results/srcon")
     args = parser.parse_known_args()[0]
     return args
+
+def plotLoss(title, path, log=False):
+    x_data, y_data = [], []
+    for file in os.listdir(path):
+        if "progress" in file:  
+            data = pd.read_csv(os.path.join(path, file))
+            x_data.append(data['step'].to_numpy())
+            y_data.append(data['loss'].to_numpy())
+    x_data = np.array(x_data)
+    y_data = np.array(y_data)
+    x = x_data[0]
+    y = y_data.mean(0)
+    plt.figure(figsize=(10, 8), dpi=80)
+    plt.plot(x, y, label="hypermodel")
+    if y_data.shape[0] > 1:
+        low_CI_bound, high_CI_bound = st.t.interval(
+            0.95, len(y_data[0]) - 1, loc=y, scale=st.sem(y_data)
+        )
+        plt.fill_between(x, low_CI_bound, high_CI_bound, alpha=0.2)
+    if log:
+        plt.yscale("log")
+    plt.grid(color="grey", linestyle="--", linewidth=0.5)
+    plt.title(title)
+    plt.ylabel("Step Loss")
+    plt.xlabel("Time period")
+    plt.legend(loc="best")
+    plt.savefig(path + "/loss.pdf")
 
 
 def plotReward(title, path, log=False):
@@ -66,6 +94,25 @@ def plotReward(title, path, log=False):
     plt.xlabel("Time period")
     plt.legend(loc="best")
     plt.savefig(path + "/reward.pdf")
+
+
+def debug(args, model, objective, logger):
+    # collect data
+    for _ in range(args.time_period):
+        x = np.random.rand(args.d_theta)
+        x = bound_point(x)
+        y_true = objective.call(x)
+        data = {"x": x, "y": y_true / 1000}
+        model.put(data)
+
+    # train model
+    for t in range(args.time_period * 10):
+        update_results = model.update()
+        if t % args.log_freq == 0 or t == 1:
+            logger.record("step", t)
+            for key, val in update_results.items():
+                logger.record(key, val)
+            logger.dump(t)
 
 
 def run(args, model, objective, logger):
@@ -137,9 +184,15 @@ def main(args):
             action_max_update=args.action_max_update,
         )
 
-        run(args, model, objective, logger)
+        if args.debug:
+            debug(args, model, objective, logger)
+        else:
+            run(args, model, objective, logger)
 
-    plotReward(title="SRCON", path=logger.get_dir(), log=False)
+    if args.debug:
+        plotLoss(title="SRCON", path=logger.get_dir(), log=False)
+    else:
+        plotReward(title="SRCON", path=logger.get_dir(), log=False)
 
 
 
