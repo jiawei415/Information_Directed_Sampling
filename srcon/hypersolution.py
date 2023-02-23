@@ -440,7 +440,7 @@ class HyperSolution:
         return actions[act_index]
 
     def save_model(self, save_path):
-        torch.save(self.model.state_dict(), os.path.join(save_path, "model.pth"))
+        torch.save(self.model.state_dict(), save_path)
 
     def load_model(self, load_path):
-        self.model.load_state_dict(torch.load(os.path.join(load_path, "model.pth")))
+        self.model.load_state_dict(torch.load(load_path))

@@ -25,12 +25,12 @@ def get_args():
     parser.add_argument("--time-period", type=int, default=int(1e6))
     parser.add_argument("--d-index", type=int, default=16)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--xi-coef", type=float, default=0.01)
     parser.add_argument("--norm-coef", type=float, default=0.01)
     parser.add_argument("--hidden-sizes", type=int, nargs="+", default=[128])
     parser.add_argument("--update-freq", type=int, default=1)
-    parser.add_argument("--update-num", type=int, default=100)
+    parser.add_argument("--update-num", type=int, default=10)
     parser.add_argument("--learning-start", type=int, default=2000)
     parser.add_argument("--action-num", type=int, default=10)
     parser.add_argument("--action-lr", type=float, default=0.001)
@@ -106,7 +106,7 @@ def debug(args, model, objective, logger):
         model.put(data)
 
     # train model
-    for t in range(args.time_period * 10):
+    for t in range(args.time_period):
         update_results = model.update()
         if t % args.log_freq == 0 or t == 1:
             logger.record("step", t)
@@ -115,10 +115,11 @@ def debug(args, model, objective, logger):
             logger.dump(t)
 
 
-def run(args, model, objective, logger):
+def run(args, model, objective, logger, run_id):
     update_num = 0
     update_results = {}
     reward_list, error_list = [], []
+    best_reward, best_action = -np.inf, None
     for t in range(1, args.time_period + 1):
         start_time = time.time()
         # collect data
@@ -132,6 +133,12 @@ def run(args, model, objective, logger):
         y_pred = y_pred[0][0] * 1000
         reward_list.append(y_true)
         error_list.append(abs(y_true - y_pred))
+        if y_true > best_reward:
+            best_reward = y_true
+            best_action = x
+            logger.info(f"Step {t}, Best Reward {best_reward}.")
+            np.save(os.path.join(logger.get_dir(), f"best_action{run_id}"), best_action)
+            model.save_model(os.path.join(logger.get_dir(), f"best_model{run_id}.pkl"))
         data = {"x": x, "y": y_true / 1000}
         model.put(data)
         # update model
@@ -187,7 +194,7 @@ def main(args):
         if args.debug:
             debug(args, model, objective, logger)
         else:
-            run(args, model, objective, logger)
+            run(args, model, objective, logger, seed)
 
     if args.debug:
         plotLoss(title="SRCON", path=logger.get_dir(), log=False)
