@@ -415,9 +415,9 @@ class HyperSolution:
     def reset(self):
         self.__init_model_optimizer()
 
-    def select_action(self, bound_func, maximize=True):
+    def select_action(self, actions, bound_func, maximize=True):
         # init actions
-        actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
+        # actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
         actions = torch.from_numpy(actions).to(self.device)
         actions.requires_grad = True
         noise = self.generate_noise(actions.shape[0])  # sample noise
@@ -438,7 +438,7 @@ class HyperSolution:
         out = out.detach().cpu().numpy()
         act_index = rd_argmax(out.squeeze(-1))
         actions = actions.detach().cpu().numpy()
-        return actions[act_index]
+        return np.array([actions[act_index]])
 
     def save_model(self, save_path):
         torch.save(self.model.state_dict(), save_path)

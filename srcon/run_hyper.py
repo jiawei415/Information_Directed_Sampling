@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as st
 
-from SRCON_simulator.utils import BlackBoxSRCONObjective
+from blacksrcon import SRCON
 from blackbox import BlackBox
 from hypersolution import HyperSolution, set_seed, bound_point
 from logger import configure, dump_params
@@ -21,7 +21,7 @@ def get_args():
         "--dataset",
         type=str,
         default="Branin",
-        help="[korea, chengdu, hanjiang, nandong] for scron, [Branin, Schwefe, Ackley] for blackbox",
+        help="[korea, chengdu, hanjiang, nandong] for scron, [Branin, Schwefel, Ackley] for blackbox",
     )
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-exp", type=int, default=3)
@@ -126,22 +126,18 @@ def run(args, model, objective, logger, run_id):
     update_results = {}
     reward_list, error_list = [], []
     best_reward, best_action = -np.inf, None
-    if args.env == "srcon":
-        bound_func = bound_point
-        maximize = True
-    elif args.env == "blackbox":
-        bound_func = objective.bound_point
-        maximize = False
+    maximize = True if args.env == "srcon" else False
     for t in range(1, args.time_period + 1):
         start_time = time.time()
         # collect data
         if t >= args.learning_start:
-            x = model.select_action(bound_func, maximize)
+            xs = objective.sample_action(args.action_num)
+            x = model.select_action(xs, objective.bound_point, maximize)
         else:
-            x = np.random.rand(args.d_theta)
-        x = bound_func(x)
+            x = objective.sample_action(1)
+        x = objective.bound_point(x)
         y_true = objective.call(x)
-        y_pred = model.predict(np.array([x]))
+        y_pred = model.predict(x)
         y_pred = y_pred[0][0] * 1000
         reward_list.append(y_true)
         error_list.append(abs(y_true - y_pred))
@@ -188,8 +184,8 @@ def main(args):
 
         # create environment
         if args.env == "srcon":
-            objective = BlackBoxSRCONObjective(args.dataset)
-            args.d_theta = objective.num_para
+            objective = SRCON(args.dataset)
+            args.d_theta = objective.input_dim
         elif args.env == "blackbox":
             if args.dataset == "Branin":
                 args.d_theta = 2
