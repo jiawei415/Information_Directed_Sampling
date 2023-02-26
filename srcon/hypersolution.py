@@ -415,7 +415,7 @@ class HyperSolution:
     def reset(self):
         self.__init_model_optimizer()
 
-    def select_action(self):
+    def select_action(self, bound_func, maximize=True):
         # init actions
         actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
         actions = torch.from_numpy(actions).to(self.device)
@@ -426,13 +426,14 @@ class HyperSolution:
         optim = torch.optim.Adam([actions], lr=self.action_lr)
         # optimze actions
         for _ in range(self.action_max_update):
-            out = model(noise, actions)
-            out = -out.mean()
+            out = model(noise, actions).mean()
+            if maximize:
+                out = -out
             optim.zero_grad()
             out.backward()
             optim.step()
             with torch.no_grad():
-                actions = bound_point(actions)
+                actions = bound_func(actions)
         out = model(noise, actions)
         out = out.detach().cpu().numpy()
         act_index = rd_argmax(out.squeeze(-1))

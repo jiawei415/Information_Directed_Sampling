@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import scipy.stats as st
 
 from SRCON_simulator.utils import BlackBoxSRCONObjective
+from blackbox import BlackBox
 from hypersolution import HyperSolution, set_seed, bound_point
 from logger import configure, dump_params
 
@@ -14,15 +15,19 @@ from logger import configure, dump_params
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--env", type=str, default="blackbox", choices=["srcon", "blackbox"]
+    )
+    parser.add_argument(
         "--dataset",
         type=str,
-        default="korea",
-        choices=["korea", "chengdu", "hanjiang", "nandong"],
+        default="Branin",
+        help="[korea, chengdu, hanjiang, nandong] for scron, [Branin, Schwefe, Ackley] for blackbox",
     )
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-exp", type=int, default=3)
     parser.add_argument("--debug", type=int, default=0, choices=[0, 1])
     parser.add_argument("--time-period", type=int, default=int(1e6))
+    parser.add_argument("--d-theta", type=int, default=20)
     parser.add_argument("--d-index", type=int, default=16)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--batch-size", type=int, default=128)
@@ -40,13 +45,14 @@ def get_args():
     args = parser.parse_known_args()[0]
     return args
 
+
 def plotLoss(title, path, log=False):
     x_data, y_data = [], []
     for file in os.listdir(path):
-        if "progress" in file:  
+        if "progress" in file:
             data = pd.read_csv(os.path.join(path, file))
-            x_data.append(data['step'].to_numpy())
-            y_data.append(data['loss'].to_numpy())
+            x_data.append(data["step"].to_numpy())
+            y_data.append(data["loss"].to_numpy())
     x_data = np.array(x_data)
     y_data = np.array(y_data)
     x = x_data[0]
@@ -71,10 +77,10 @@ def plotLoss(title, path, log=False):
 def plotReward(title, path, log=False):
     x_data, y_data = [], []
     for file in os.listdir(path):
-        if "progress" in file:  
+        if "progress" in file:
             data = pd.read_csv(os.path.join(path, file))
-            x_data.append(data['step'].to_numpy())
-            y_data.append(data['reward'].to_numpy())
+            x_data.append(data["step"].to_numpy())
+            y_data.append(data["reward"].to_numpy())
     x_data = np.array(x_data)
     y_data = np.array(y_data)
     x = x_data[0]
@@ -120,14 +126,20 @@ def run(args, model, objective, logger, run_id):
     update_results = {}
     reward_list, error_list = [], []
     best_reward, best_action = -np.inf, None
+    if args.env == "srcon":
+        bound_func = bound_point
+        maximize = True
+    elif args.env == "blackbox":
+        bound_func = objective.bound_point
+        maximize = False
     for t in range(1, args.time_period + 1):
         start_time = time.time()
         # collect data
         if t >= args.learning_start:
-            x = model.select_action()
+            x = model.select_action(bound_func, maximize)
         else:
             x = np.random.rand(args.d_theta)
-            x = bound_point(x)
+        x = bound_func(x)
         y_true = objective.call(x)
         y_pred = model.predict(np.array([x]))
         y_pred = y_pred[0][0] * 1000
@@ -160,7 +172,9 @@ def run(args, model, objective, logger, run_id):
 
 
 def main(args):
-    log_file = f"{args.dataset}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+    log_file = (
+        f"{args.dataset}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+    )
     for i in range(args.n_exp):
         seed = args.seed + i
         set_seed(seed)
@@ -173,8 +187,13 @@ def main(args):
             dump_params(logger, vars(args))
 
         # create environment
-        objective = BlackBoxSRCONObjective(args.dataset)
-        args.d_theta = objective.num_para
+        if args.env == "srcon":
+            objective = BlackBoxSRCONObjective(args.dataset)
+            args.d_theta = objective.num_para
+        elif args.env == "blackbox":
+            if args.dataset == "Branin":
+                args.d_theta = 2
+            objective = BlackBox(args.dataset, args.d_theta)
 
         # create hypermodel
         model = HyperSolution(
@@ -200,7 +219,6 @@ def main(args):
         plotLoss(title="SRCON", path=logger.get_dir(), log=False)
     else:
         plotReward(title="SRCON", path=logger.get_dir(), log=False)
-
 
 
 if __name__ == "__main__":
