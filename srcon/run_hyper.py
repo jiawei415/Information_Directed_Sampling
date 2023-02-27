@@ -6,9 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as st
 
-from blacksrcon import SRCON
-from blackbox import BlackBox
-from hypersolution import HyperSolution, set_seed, bound_point
+from hypersolution import HyperSolution, set_seed
 from logger import configure, dump_params
 
 
@@ -40,7 +38,7 @@ def get_args():
     parser.add_argument("--action-num", type=int, default=10)
     parser.add_argument("--action-lr", type=float, default=0.001)
     parser.add_argument("--action-max-update", type=int, default=1000)
-    parser.add_argument("--log-freq", type=int, default=10)
+    parser.add_argument("--log-freq", type=int, default=100)
     parser.add_argument("--log-dir", type=str, default="./results/srcon")
     args = parser.parse_known_args()[0]
     return args
@@ -105,10 +103,10 @@ def plotReward(title, path, log=False):
 def debug(args, model, objective, logger):
     # collect data
     for _ in range(args.time_period):
-        x = np.random.rand(args.d_theta)
-        x = bound_point(x)
+        x = objective.sample_action(1)
+        x = objective.bound_point(x)
         y_true = objective.call(x)
-        data = {"x": x, "y": y_true / 1000}
+        data = {"x": x, "y": y_true}
         model.put(data)
 
     # train model
@@ -138,7 +136,7 @@ def run(args, model, objective, logger, run_id):
         x = objective.bound_point(x)
         y_true = objective.call(x)
         y_pred = model.predict(x)
-        y_pred = y_pred[0][0] * 1000
+        y_pred = y_pred[0][0]
         reward_list.append(y_true)
         error_list.append(abs(y_true - y_pred))
         if y_true > best_reward:
@@ -147,7 +145,7 @@ def run(args, model, objective, logger, run_id):
             logger.info(f"Step {t}, Best Reward {best_reward}.")
             np.save(os.path.join(logger.get_dir(), f"best_action{run_id}"), best_action)
             model.save_model(os.path.join(logger.get_dir(), f"best_model{run_id}.pkl"))
-        data = {"x": x, "y": y_true / 1000}
+        data = {"x": x, "y": y_true}
         model.put(data)
         # update model
         if t % args.update_freq == 0 and t >= args.learning_start:
@@ -184,9 +182,13 @@ def main(args):
 
         # create environment
         if args.env == "srcon":
+            from blacksrcon import SRCON
+
             objective = SRCON(args.dataset)
             args.d_theta = objective.input_dim
         elif args.env == "blackbox":
+            from blackbox import BlackBox
+
             if args.dataset == "Branin":
                 args.d_theta = 2
             objective = BlackBox(args.dataset, args.d_theta)
@@ -205,6 +207,7 @@ def main(args):
             action_lr=args.action_lr,
             action_max_update=args.action_max_update,
         )
+        logger.info(f"Network structure:\n{str(model.model)}")
 
         if args.debug:
             debug(args, model, objective, logger)

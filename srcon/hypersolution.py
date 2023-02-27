@@ -348,7 +348,6 @@ class HyperSolution:
             self.posterior_scale,
             self.device,
         ).to(self.device)
-        print(f"Network structure:\n{str(self.model)}")
         # init optimizer
         if self.optim == "Adam":
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)

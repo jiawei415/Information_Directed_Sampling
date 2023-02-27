@@ -11,6 +11,7 @@ class SRCON:
 
     def call(self, x):
         y = self.objective.call(x.squeeze(0))
+        y /= 1000
         return y
 
     def sample_action(self, num):
