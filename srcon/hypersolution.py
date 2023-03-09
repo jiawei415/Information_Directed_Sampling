@@ -414,12 +414,17 @@ class HyperSolution:
     def reset(self):
         self.__init_model_optimizer()
 
-    def select_action(self, actions, bound_func, maximize=True):
+    def select_action(self, actions, bound_func, single_noise=True, maximize=True):
         # init actions
         # actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
         actions = torch.from_numpy(actions).to(self.device)
         actions.requires_grad = True
-        noise = self.generate_noise(actions.shape[0])  # sample noise
+        # sample noise
+        if single_noise:
+            noise = self.generate_noise(1)
+            noise = noise.repeat(actions.shape[0], 1)
+        else:
+            noise = self.generate_noise(actions.shape[0])
         model = copy.deepcopy(self.model)
         model.requires_grad = False
         optim = torch.optim.Adam([actions], lr=self.action_lr)
