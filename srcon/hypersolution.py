@@ -435,7 +435,10 @@ class HyperSolution:
                 actions = bound_func(actions)
         out = model(noise, actions)
         out = out.detach().cpu().numpy()
-        act_index = rd_argmax(out.squeeze(-1))
+        if maximize:
+            act_index = rd_argmax(out.squeeze(-1))
+        else:
+            act_index = rd_argmax(-out.squeeze(-1))
         actions = actions.detach().cpu().numpy()
         return np.array([actions[act_index]])
 

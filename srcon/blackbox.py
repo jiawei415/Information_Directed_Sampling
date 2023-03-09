@@ -1,6 +1,12 @@
 import numpy as np
 import torch
 
+D_THETA = {
+    "Branin": 2,
+    "Schwefel": 3,
+    "Ackley": 20,
+}
+
 
 class BlackBox:
     def __init__(self, func_name: str = "Branin", input_dim: int = 20) -> None:
@@ -23,7 +29,7 @@ class BlackBox:
         t = 1 / (8 * np.pi)
         x1, x2 = x[:, 0], x[:, 1]
         y = a * (x2 - b * x1**2 + c * x1 - r) ** 2 + s * (1 - t) * np.cos(x1) + s
-        return y
+        return y[0]
 
     def _Branin_bound(self, x):
         if isinstance(x, np.ndarray):
@@ -45,19 +51,20 @@ class BlackBox:
         x in [-500, 500]
         global minimum 0 at (420.9687,...,420.9687)
         """
-        d = len(x)
-        y = 418.9829 * d - np.sum(x * np.sin(np.sqrt(np.abs(x))))
-        return y
+        x *= 100
+        d = x.shape[-1]
+        y = 418.9829 * d - np.sum(x * np.sin(np.sqrt(np.abs(x))), axis=-1)
+        return y[0]
 
     def _Schwefel_bound(self, x):
         if isinstance(x, np.ndarray):
-            x = np.clip(x, -500, 500)
+            x = np.clip(x, -5, 5)
         elif isinstance(x, torch.Tensor):
-            x = torch.clamp(x, -500, 500)
+            x = torch.clamp(x, -5, 5)
         return x
 
     def _Schwefel_sample(self, num):
-        x = np.random.uniform(-500, 500, (num, self.input_dim))
+        x = np.random.uniform(-5, 5, (num, self.input_dim))
         return x
 
     def _Ackley_func(self, x):
@@ -69,12 +76,12 @@ class BlackBox:
         b = 0.2
         c = 2 * np.pi
         y = (
-            -a * np.exp(-b * np.sqrt(np.mean(x**2)))
-            - np.exp(np.mean(np.cos(c * x)))
+            -a * np.exp(-b * np.sqrt(np.mean(x**2, axis=-1)))
+            - np.exp(np.mean(np.cos(c * x), axis=-1))
             + a
             + np.exp(1)
         )
-        return y
+        return y[0]
 
     def _Ackley_bound(self, x):
         if isinstance(x, np.ndarray):
