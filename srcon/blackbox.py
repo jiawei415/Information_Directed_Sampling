@@ -5,12 +5,13 @@ D_THETA = {
     "Branin": 2,
     "Schwefel": 3,
     "Ackley": 20,
+    "Hartmann": 6,
 }
 
 
 class BlackBox:
     def __init__(self, func_name: str = "Branin", input_dim: int = 20) -> None:
-        assert func_name in ["Branin", "Schwefel", "Ackley"]
+        assert func_name in ["Branin", "Schwefel", "Ackley", "Hartmann"]
         self.function = getattr(self, f"_{func_name}_func")
         self.bound_point = getattr(self, f"_{func_name}_bound")
         self.sample_action = getattr(self, f"_{func_name}_sample")
@@ -92,6 +93,51 @@ class BlackBox:
 
     def _Ackley_sample(self, num):
         x = np.random.uniform(-32.768, 32.768, (num, self.input_dim))
+        return x
+
+    def _Hartmann_func(self, x):
+        """
+        x in [0, 1]
+        global minimum -3.32237 at (0.20169, 0.150011, 0.476874, 0.275332, 0.311652, 0.6573)
+        """
+        alpha = [1.0, 1.2, 3.0, 3.2]
+        A = np.array(
+            [
+                [10, 3, 17, 3.5, 1.7, 8],
+                [0.05, 10, 17, 0.1, 8, 14],
+                [3, 3.5, 1.7, 10, 17, 8],
+                [17, 8, 0.05, 10, 0.1, 14],
+            ]
+        )
+        P = (
+            np.array(
+                [
+                    [1312, 1696, 5569, 124, 8283, 5886],
+                    [2329, 4135, 8307, 3736, 1004, 9991],
+                    [2348, 1451, 3522, 2883, 3047, 6650],
+                    [4047, 8828, 8732, 5743, 1091, 381],
+                ]
+            )
+            * 1e-4
+        )
+        temp_y = 0
+        for i in range(len(alpha)):
+            temp_y += alpha[i] * np.exp(
+                -np.sum(A[i, :] * (x[0] - P[i, :]) ** 2, axis=-1)
+            )
+
+        y = -(2.58 + temp_y) / 1.94
+        return y
+
+    def _Hartmann_bound(self, x):
+        if isinstance(x, np.ndarray):
+            x = np.clip(x, 0, 1)
+        elif isinstance(x, torch.Tensor):
+            x = torch.clamp(x, 0, 1)
+        return x
+
+    def _Hartmann_sample(self, num):
+        x = np.random.uniform(0, 1, (num, self.input_dim))
         return x
 
     def call(self, x):
