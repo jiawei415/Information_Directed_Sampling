@@ -120,6 +120,15 @@ def rd_argmax(vector):
     indices = np.nonzero(vector == m)[0]
     return rd.choice(indices)
 
+def rd_max(vector):
+    """
+    Compute random among eligible maximum value
+    :param vector: np.array
+    :return: int, random index among eligible maximum value
+    """
+    index = rd_argmax(vector)
+    return vector[index]
+
 
 def haar_matrix(M):
     """

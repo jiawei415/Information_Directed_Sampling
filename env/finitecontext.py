@@ -1,6 +1,45 @@
 """ Packages import """
 import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
+from utils import rd_max
+
+class MLP(nn.Module):
+    def __init__(
+        self,
+        input_dim,
+        output_dim=2,
+        hidden_sizes=[50, 50],
+        temperature=1.0,
+        device="cpu",
+    ):
+        super().__init__()
+        model = []
+        if len(hidden_sizes) > 0 :
+            hidden_sizes = [input_dim] + list(hidden_sizes)
+            for i in range(1, len(hidden_sizes)):
+                model += [nn.Linear(hidden_sizes[i-1], hidden_sizes[i])]
+                model += [nn.ReLU(inplace=True)]
+            model += [nn.Linear(hidden_sizes[-1], output_dim)]
+        self.model = nn.Sequential(*model)
+        self.reset_parameters()
+
+        self.temperature = temperature
+        self.device = device
+
+    def reset_parameters(self) -> None:
+        for name, param in self.named_parameters():
+            if "weight" in name:
+                nn.init.xavier_normal_(param)
+
+    def forward(self, x):
+        x = torch.from_numpy(x.astype(np.float32)).to(self.device)
+        logits = self.model(x)
+        probs = F.softmax(logits / self.temperature, -1)
+        out = rd_max(probs.detach().cpu().numpy())
+        return out
 
 class ArmGaussianLinear(object):
     def __init__(self, n_context, prior_random_state=2022, reward_random_state=2023):
@@ -185,6 +224,9 @@ class SyntheticNonlinModel:
             self.reward_fn = getattr(self, "reward_fn2")
             theta = self.prior_random.normal(0, sigma, size=n_features)
             self.real_theta = theta / np.linalg.norm(theta)
+        elif reward_version == "v3":
+            self.set_reward_model(n_features)
+            self.reward_fn = getattr(self, "reward_fn3")
         else:
             raise NotImplementedError
         self.all_rewards = np.array(
@@ -213,12 +255,21 @@ class SyntheticNonlinModel:
         self.features = self.all_features[sub_action_set]
         self.sub_rewards = self.all_rewards[sub_action_set]
 
+    def set_reward_model(self, input_dim):
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.reward_model = MLP(input_dim, device=device).to(device)
+
     def reward_fn1(self, feature):
         reward = 0.01 * feature.T @ self.real_theta @ feature
         return reward
 
     def reward_fn2(self, feature):
         reward = np.exp(-10 * np.dot(feature, self.real_theta) ** 2)
+        return reward
+
+    def reward_fn3(self, feature):
+        prob = self.reward_model(feature)
+        reward = prob # np.random.binomial(1, prob)
         return reward
 
     def reward(self, arm):
@@ -231,7 +282,7 @@ class SyntheticNonlinModel:
         best_arm_reward = self.sub_rewards.max()
         return best_arm_reward - expect_reward
 
-    def expect_regret(self, arm, action_set):
+    def expect_regret(self, arm, features):
         """
         Compute the regret of a single step
         """

@@ -342,6 +342,12 @@ def FiniteContextHyperMAB_expe(
             for _ in range(n_expe)
         ]
         title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: v2"
+    elif problem == "Synthetic-v3":
+        models = [
+            HyperMAB(SyntheticNonlinModel(n_features, n_arms, reward_version="v3"))
+            for _ in range(n_expe)
+        ]
+        title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: v3"
     else:
         raise NotImplementedError
 
