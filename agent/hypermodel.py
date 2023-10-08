@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def mlp(input_dim, hidden_sizes, linear_layer=nn.Linear):
@@ -16,52 +17,109 @@ def mlp(input_dim, hidden_sizes, linear_layer=nn.Linear):
     return model
 
 
-class PriorHyperLinear(torch.nn.Module):
+class HyperLayer(nn.Module):
     def __init__(
         self,
-        input_size: int,
-        output_size: int,
-        prior_mean: float or np.ndarray = 0.,
-        prior_std: float or np.ndarray = 1.,
+        noise_dim: int,
+        hidden_dim: int,
+        action_dim: int = 1,
+        prior_std: float = 1.0,
+        use_bias: bool = True,
+        trainable: bool = True,
+        out_type: str = "weight",
+        weight_init: str = "xavier_normal",
+        bias_init: str = "sphere-sphere",
+        device: Union[str, int, torch.device] = "cpu",
     ):
         super().__init__()
+        assert out_type in ["weight", "bias"], f"No out type {out_type} in HyperLayer"
+        self.noise_dim = noise_dim
+        self.hidden_dim = hidden_dim
+        self.action_dim = action_dim
+        self.prior_std = prior_std
+        self.use_bias = use_bias
+        self.trainable = trainable
+        self.out_type = out_type
+        self.weight_init = weight_init
+        self.bias_init = bias_init
+        self.device = device
 
-        self.in_features, self.out_features = input_size, output_size
-        # (fan-out, fan-in)
-        self.weight = np.random.randn(output_size, input_size).astype(np.float32)
-        self.weight = self.weight / np.linalg.norm(self.weight, axis=1, keepdims=True)
+        self.in_features = noise_dim
+        if out_type == "weight":
+            self.out_features = action_dim * hidden_dim
+        elif out_type == "bias":
+            self.out_features = action_dim
 
-        if isinstance(prior_mean, np.ndarray):
-            self.bias = prior_mean
+        self.weight = nn.Parameter(torch.Tensor(self.out_features, self.in_features))
+        if use_bias:
+            self.bias = nn.Parameter(torch.Tensor(self.out_features))
         else:
-            self.bias = np.ones(output_size, dtype=np.float32) * prior_mean
+            self.register_parameter('bias', None)
+        self.reset_parameters()
 
-        if isinstance(prior_std, np.ndarray):
-            if prior_std.ndim == 1:
-                assert len(prior_std) == output_size
-                prior_std = np.diag(prior_std).astype(np.float32)
-            elif prior_std.ndim == 2:
-                assert prior_std.shape == (output_size, output_size)
-                prior_std = prior_std
+        if not self.trainable:
+            for parameter in self.parameters():
+                parameter.requires_grad = False
+
+    def reset_parameters(self) -> None:
+        # init weight
+        if self.weight_init == "sDB":
+            weight = np.random.randn(self.out_features, self.in_features).astype(np.float32)
+            weight = weight / np.linalg.norm(weight, axis=1, keepdims=True)
+            self.weight = nn.Parameter(torch.from_numpy(self.prior_std * weight).float())
+        elif self.weight_init == "gDB":
+            weight = np.random.randn(self.out_features, self.in_features).astype(np.float32)
+            self.weight = nn.Parameter(torch.from_numpy(self.prior_std * weight).float())
+        elif self.weight_init == "trunc_normal":
+            bound = 1.0 / np.sqrt(self.in_features)
+            nn.init.trunc_normal_(self.weight, std=bound, a=-2*bound, b=2*bound)
+        elif self.weight_init == "xavier_uniform":
+            nn.init.xavier_uniform_(self.weight, gain=1.0)
+        elif self.weight_init == "xavier_normal":
+            nn.init.xavier_normal_(self.weight, gain=1.0)
+        else:
+            nn.init.kaiming_uniform_(self.weight, a=np.sqrt(5))
+        # init bias
+        if self.use_bias:
+            if self.bias_init == "default":
+                bound = 1.0 / np.sqrt(self.in_features)
+                nn.init.uniform_(self.bias, -bound, bound)
             else:
-                raise ValueError
-        else:
-            assert isinstance(prior_std, (float, int, np.float32, np.int32, np.float64, np.int64))
-            prior_std = np.eye(output_size, dtype=np.float32) * prior_std
+                weight_bias_init, bias_bias_init = self.bias_init.split("-")
+                if self.out_type == "weight":
+                    if weight_bias_init == "zeros":
+                        nn.init.zeros_(self.bias)
+                    elif weight_bias_init == "sphere":
+                        bias = np.random.randn(self.out_features).astype(np.float32)
+                        bias = bias / np.linalg.norm(bias)
+                        self.bias = nn.Parameter(torch.from_numpy(self.prior_std * bias).float())
+                    elif weight_bias_init == "xavier":
+                        bias = nn.init.xavier_normal_(torch.zeros((self.action_dim, self.hidden_dim)))
+                        self.bias = nn.Parameter(bias.flatten())
+                elif self.out_type == "bias":
+                    if bias_bias_init == "zeros":
+                        nn.init.zeros_(self.bias)
+                    elif bias_bias_init == "sphere":
+                        bias = np.random.randn(self.out_features).astype(np.float32)
+                        bias = bias / np.linalg.norm(bias)
+                        self.bias = nn.Parameter(torch.from_numpy(self.prior_std * bias).float())
+                    elif bias_bias_init == "uniform":
+                        bound = 1 / np.sqrt(self.hidden_dim)
+                        nn.init.uniform_(self.bias, -bound, bound)
+                    elif bias_bias_init == "pos":
+                        bias = 1 * np.ones(self.out_features)
+                        self.bias = nn.Parameter(torch.from_numpy(bias).float())
+                    elif bias_bias_init == "neg":
+                        bias = -1 * np.ones(self.out_features)
+                        self.bias = nn.Parameter(torch.from_numpy(bias).float())
 
-        self.weight = torch.nn.Parameter(torch.from_numpy(prior_std @ self.weight).float())
-        self.bias = torch.nn.Parameter(torch.from_numpy(self.bias).float())
+    def forward(self, z: torch.Tensor):
+        z = z.to(self.device)
+        return F.linear(z, self.weight, self.bias)
 
-        for param in self.parameters():
-            param.requires_grad = False
-
-    def forward(self, x):
-        out = torch.nn.functional.linear(x, self.weight.to(x.device), self.bias.to(x.device))
-        return out
-
-    def extra_repr(self):
+    def extra_repr(self) -> str:
         return 'in_features={}, out_features={}, bias={}'.format(
-            self.in_features, self.out_features, not np.all(self.bias.cpu().detach().numpy() == 0)
+            self.in_features, self.out_features, self.bias is not None
         )
 
 
@@ -70,23 +128,22 @@ class HyperLinear(nn.Module):
         self,
         noise_dim,
         out_features,
-        prior_std: float or np.ndarray = 1.0,
-        prior_mean: float or np.ndarray = 0.0,
+        prior_std: float = 1.0,
         prior_scale: float = 1.0,
-        posterior_scale: float = 1.0
+        posterior_scale: float = 1.0,
+        device: str = "cpu",
     ):
         super().__init__()
-        self.hypermodel = nn.Linear(noise_dim, out_features)
-        self.priormodel = PriorHyperLinear(noise_dim, out_features, prior_mean, prior_std)
-        for param in self.priormodel.parameters():
-            param.requires_grad = False
+        hyperlayer_params = dict(noise_dim=noise_dim, hidden_dim=out_features, prior_std=prior_std, out_type="weight", device=device)
+        self.hyper_weight = HyperLayer(**hyperlayer_params, trainable=True, weight_init="xavier_normal")
+        self.prior_weight = HyperLayer(**hyperlayer_params, trainable=False, weight_init="sDB")
 
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
 
     def forward(self, z, x, prior_x):
-        theta = self.hypermodel(z)
-        prior_theta = self.priormodel(z)
+        theta = self.hyper_weight(z)
+        prior_theta = self.prior_weight(z)
 
         if len(x.shape) > 2:
             # compute feel-good term
@@ -98,20 +155,20 @@ class HyperLinear(nn.Module):
             prior_out = torch.mm(prior_theta, prior_x.T)
         else:
             # compute predict reward in batch
-            out = torch.mul(x, theta).sum(-1)
-            prior_out = torch.mul(prior_x, prior_theta).sum(-1)
+            out = torch.einsum('bnw,bw -> bn', theta, x)
+            prior_out = torch.einsum('bnw,bw -> bn', theta, x)
 
         out = self.posterior_scale * out + self.prior_scale * prior_out
         return out
 
     def regularization(self, z):
-        theta = self.hypermodel(z)
+        theta = self.hyper_weight(z)
         reg_loss = theta.pow(2).mean()
         return reg_loss
 
     def get_thetas(self, z):
-        theta = self.hypermodel(z)
-        prior_theta = self.priormodel(z)
+        theta = self.hyper_weight(z)
+        prior_theta = self.prior_weight(z)
         theta = self.posterior_scale * theta + self.prior_scale * prior_theta
         return theta
 
@@ -122,8 +179,7 @@ class Net(nn.Module):
         in_features: int,
         hidden_sizes: Sequence[int] = (),
         noise_dim: int = 2,
-        prior_std: float or np.ndarray = 1.0,
-        prior_mean: float or np.ndarray = 0.0,
+        prior_std: float = 1.0,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         device: Union[str, int, torch.device] = "cpu",
@@ -136,9 +192,7 @@ class Net(nn.Module):
 
         hyper_out_features = in_features if len(hidden_sizes) == 0 else hidden_sizes[-1]
         self.out = HyperLinear(
-            noise_dim, hyper_out_features,
-            prior_std, prior_mean,
-            prior_scale, posterior_scale,
+            noise_dim, hyper_out_features, prior_std, prior_scale, posterior_scale, device
         )
         self.device = device
 
@@ -211,8 +265,7 @@ class HyperModel:
         n_action: int,
         n_feature: int,
         hidden_sizes: Sequence[int] = (),
-        prior_std: float or np.ndarray = 1.0,
-        prior_mean: float or np.ndarray = 0.0,
+        prior_std: float = 1.0,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         batch_size: int = 32,
@@ -223,6 +276,7 @@ class HyperModel:
         norm_coef: float = 0.01,
         target_noise_coef: float = 0.01,
         buffer_size: int = 10000,
+        NpS: int = 20,
         reset: bool = False,
     ):
 
@@ -231,13 +285,13 @@ class HyperModel:
         self.feature_dim = n_feature
         self.hidden_sizes = hidden_sizes
         self.prior_std = prior_std
-        self.prior_mean = prior_mean
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
         self.lr = lr
         self.fg_lambda = fg_lambda
         self.fg_decay = fg_decay
         self.batch_size = batch_size
+        self.NpS = NpS
         self.optim = optim
         self.norm_coef = norm_coef
         self.target_noise_coef = target_noise_coef
@@ -251,11 +305,10 @@ class HyperModel:
     def __init_model_optimizer(self):
         # init hypermodel
         self.model = Net(
-            self.feature_dim, self.hidden_sizes, self.noise_dim, 
-            self.prior_std, self.prior_mean, self.prior_scale,
-            self.posterior_scale, device=self.device
+            self.feature_dim, self.hidden_sizes, self.noise_dim, self.prior_std,
+            self.prior_scale, self.posterior_scale, device=self.device
         ).to(self.device)
-        print(f"Network structure:\n{str(self.model)}")
+        print(f"\nNetwork structure:\n{str(self.model)}")
          # init optimizer
         if self.optim == "Adam":
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
@@ -306,17 +359,18 @@ class HyperModel:
         r_batch = torch.FloatTensor(r_batch).to(self.device)
         s_batch = torch.FloatTensor(s_batch).to(self.device)
 
-        update_noise = self.generate_noise(self.batch_size) # sample noise for update
-        target_noise = torch.mul(z_batch, update_noise).sum(-1) * self.target_noise_coef # noise for target
+        update_noise = self.generate_noise((self.batch_size, self.NpS)) # sample noise for update
+        target_noise = torch.mul(z_batch.unsqueeze(1), update_noise).sum(-1) * self.target_noise_coef # noise for target
         predict = self.model(update_noise, f_batch)
-        diff = target_noise + r_batch - predict
+        diff = target_noise + r_batch.unsqueeze(-1) - predict
+        diff = diff.pow(2).mean(-1)
         if self.fg_lambda:
             fg_lambda = self.fg_lambda / np.sqrt(len(self.buffer)) if self.fg_decay else self.fg_lambda
             fg_term = self.model(update_noise, s_batch)
             fg_term = fg_term.max(dim=-1)[0]
-            loss = (diff.pow(2) - fg_lambda * fg_term).mean()
+            loss = (diff - fg_lambda * fg_term).mean()
         else:
-            loss = diff.pow(2).mean()
+            loss = diff.mean()
         norm_coef = self.norm_coef / len(self.buffer)
         reg_loss = self.model.regularization(update_noise) * norm_coef
         loss += reg_loss
@@ -327,20 +381,36 @@ class HyperModel:
 
     def get_thetas(self, M=1):
         assert len(self.hidden_sizes) == 0, f'hidden size > 0'
-        action_noise = self.generate_noise(M)
+        action_noise = self.generate_noise((M,))
         with torch.no_grad():
             thetas = self.model.out.get_thetas(action_noise).cpu().numpy()
         return thetas
 
     def predict(self, features, M=1):
-        action_noise = self.generate_noise(M)
+        action_noise = self.generate_noise((M,))
         with torch.no_grad():
             p_a = self.model(action_noise, features).cpu().numpy()
         return p_a
 
-    def generate_noise(self, batch_size):
-        noise = torch.randn(batch_size, self.noise_dim).type(torch.float32).to(self.device)
-        return noise
+    def generate_noise(self, noise_num):
+        noise_shape = noise_num + (self.noise_dim, )
+        noise = torch.randn(noise_shape).type(torch.float32)
+        return noise.to(self.device)
+
+    def gen_gs_noise(self, noise_num):
+        noise_shape = noise_num + (self.noise_dim, )
+        noise = torch.randn(noise_shape).type(torch.float32)
+        return noise.to(self.device)
+
+    def gen_one_hot_noise(self, noise_num: tuple):
+        noise = torch.randint(0, self.noise_dim, noise_num)
+        noise = F.one_hot(noise, self.noise_dim).to(torch.float32)
+        return noise.to(self.device)
+
+    def gen_pn_one_noise(self, noise_num: tuple):
+        noise_shape = noise_num + (self.noise_dim, )
+        noise = torch.ones(noise_shape) + torch.randint(-1, 1, noise_shape) * 2
+        return noise.to(self.device)
 
     def reset(self):
         self.__init_model_optimizer()

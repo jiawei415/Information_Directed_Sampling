@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--game", type=str, default="Synthetic-v3")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--fg-lambda", type=float, default=1.0)
-    parser.add_argument("--noise_dim", type=int, default=2)
+    parser.add_argument("--noise_dim", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=0)
@@ -52,10 +52,10 @@ args.hidden_sizes = [args.hidden_size] * args.hidden_layer
 hyper_params = {
     "noise_dim": args.noise_dim,
     "lr": args.lr,
-    "batch_size": args.batch_size,
     "optim": args.optim,
-    "hidden_sizes": args.hidden_sizes,
     "update_num": args.update_num,
+    "batch_size": args.batch_size,
+    "hidden_sizes": args.hidden_sizes,
     "fg_lambda": args.fg_lambda,
     "fg_decay": True,
     "reset": False,
