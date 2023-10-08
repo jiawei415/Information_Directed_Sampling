@@ -211,7 +211,7 @@ class SyntheticNonlinModel:
         self.reward_random = np.random.RandomState(reward_random_state)
 
         # feture
-        x = self.prior_random.randn(all_actions, n_features)
+        x = self.prior_random.randn(all_actions, n_features).astype(np.float32)
         x /= np.linalg.norm(x, axis=1, keepdims=True)
         self.all_features = x
 
@@ -230,7 +230,7 @@ class SyntheticNonlinModel:
         else:
             raise NotImplementedError
         self.all_rewards = np.array(
-            [self.reward_fn(self.all_features[arm]) for arm in range(all_actions)]
+            [self.reward_fn(self.all_features[arm]) for arm in range(all_actions)], dtype=np.float32
         )
 
         self.sub_actions = n_actions

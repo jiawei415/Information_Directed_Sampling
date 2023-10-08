@@ -55,7 +55,7 @@ class HyperMAB:
         :param T: int, time horizon
         :return: np.arrays, reward and regret obtained by the policy
         """
-        reward, expected_regret = np.zeros(T), np.zeros(T)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         mu_t, sigma_t = self.initPrior()
         for t in range(T):
             self.set_context()
@@ -69,7 +69,6 @@ class HyperMAB:
     def TS_hyper(
         self,
         T,
-        file,
         noise_dim=2,
         fg_lambda=1.0,
         fg_decay=True,
@@ -103,7 +102,7 @@ class HyperMAB:
             reset=reset,
         )
 
-        reward, expected_regret = np.zeros(T), np.zeros(T)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)[0]

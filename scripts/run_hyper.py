@@ -22,7 +22,7 @@ from datetime import datetime
 def get_args():
     parser = argparse.ArgumentParser()
     # environment config
-    parser.add_argument("--game", type=str, default="Russo")
+    parser.add_argument("--game", type=str, default="Synthetic-v3")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--fg-lambda", type=float, default=1.0)
     parser.add_argument("--noise_dim", type=int, default=2)
@@ -33,7 +33,7 @@ def get_args():
     parser.add_argument("--repeat-num", type=int, default=500)
     parser.add_argument("--time-period", type=int, default=50)
     parser.add_argument("--n-expe", type=int, default=3)
-    parser.add_argument("--n-context", type=int, default=-1)
+    parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--norm-noise", type=int, default=0, choices=[0, 1])
     parser.add_argument("--logdir", type=str, default="./results/bandit")
@@ -136,12 +136,12 @@ param = {
 }
 
 methods = [
-    "TS",
+    # "TS",
     # "VIDS_action",
     # "VIDS_policy",
     # "VIDS_action:theta",
     # "VIDS_policy:theta",
-    # "TS_hyper",
+    "TS_hyper",
     # "VIDS_action_hyper",
     # "VIDS_policy_hyper",
     # "VIDS_action_hyper:theta",
@@ -164,6 +164,7 @@ game_config = {
     "Zhang": {"n_features": 100, "n_arms": 10, "T": args.time_period},
     "Synthetic-v1": {"n_features": 50, "n_arms": 20, "T": args.time_period},
     "Synthetic-v2": {"n_features": 50, "n_arms": 20, "T": args.time_period},
+    "Synthetic-v3": {"n_features": 50, "n_arms": 20, "T": args.time_period},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:
@@ -187,7 +188,7 @@ with open(os.path.join(path, "config.json"), "wt") as f:
 
 """Kind of Bandit problem"""
 check_Linear = True
-store = True  # if you want to store the results
+store = False  # if you want to store the results
 check_time = False
 
 

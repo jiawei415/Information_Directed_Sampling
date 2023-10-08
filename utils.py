@@ -175,17 +175,12 @@ def plotRegret(labels, regret, colors, title, path, log=False):
 
     all_regrets = regret["all_regrets"]
     mean_regret = regret["mean_regret"]
-    # std_regret = regret['std_regret']
-    # min_regret = regret['min_regret']
-    # max_regret = regret['max_regret']
     plt.figure(figsize=(10, 8), dpi=80)
     # plt.rcParams["figure.figsize"] = (16, 9)
 
     T = mean_regret.shape[1]
     print(T)
     for i, l in enumerate(labels):
-        # if 'TS' not in l:
-        #     continue
         c = cmap[i] if not colors else colors[i]
         x = np.arange(T)
         low_CI_bound, high_CI_bound = st.t.interval(
@@ -204,20 +199,6 @@ def plotRegret(labels, regret, colors, title, path, log=False):
     plt.legend(loc="best")
     plt.savefig(path + "/regret.pdf")
 
-    # mean_regret = regret["mean_regret"]
-    # plt.rcParams["figure.figsize"] = (8, 6)
-    # for i, l in enumerate(labels):
-    #     c = colors[i] or cmap[i]
-    #     plt.plot(mean_regret[i], c=c, label=l)
-    #     if log:
-    #         plt.yscale("log")
-    # plt.grid(color="grey", linestyle="--", linewidth=0.5)
-    # plt.title(title)
-    # plt.ylabel("Cumulative regret")
-    # plt.xlabel("Time period")
-    # plt.legend(loc="best")
-    # plt.savefig(path + "/regret.pdf")
-
 
 def storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=False):
     """
@@ -230,8 +211,6 @@ def storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=False):
     :return: Dictionnary with results from the experiments
     """
     all_regrets = np.zeros((len(methods), n_expe, T), dtype=np.float32)
-    # final_regrets = np.zeros((len(methods), n_expe))
-    # q, quantiles, means, std = np.linspace(0, 1, 21), {}, {}, {}
     os.makedirs(os.path.join(path, "csv_data"), exist_ok=True)
     for i, m in enumerate(methods):
         set_seed(2022, use_torch=use_torch)
@@ -245,33 +224,15 @@ def storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=False):
             args = inspect.getfullargspec(alg)[0][2:]
             args = [T] + [param_dic[m][i] for i in args]
             reward, regret = alg(*args)
+            writer.writerow(regret)
+            file.flush()
             all_regrets[i, j, :] = np.cumsum(regret)
-            writer.writerow(all_regrets[i, j, :].astype(np.float32))
         print(f"{m}: {np.mean(all_regrets[i], axis=0)[-1]}")
 
-    # for j, m in enumerate(methods):
-    #     for i in range(n_expe):
-    #         final_regrets[j, i] = all_regrets[j, i, -1]
-    #         quantiles[m], means[m], std[m] = (
-    #             np.quantile(final_regrets[j, :], q),
-    #             final_regrets[j, :].mean(),
-    #             final_regrets[j, :].std(),
-    #         )
-
-    # min_regret = all_regrets.min(axis=1)
-    # max_regret = all_regrets.max(axis=1)
-    # std_regret = all_regrets.std(axis=1)
     mean_regret = all_regrets.mean(axis=1)
     results = {
-        # "min_regret": min_regret,
-        # "max_regret": max_regret,
-        # "std_regret": std_regret,
         "mean_regret": mean_regret,
         "all_regrets": all_regrets,
-        # "final_regrets": final_regrets,
-        # "quantiles": quantiles,
-        # "means": means,
-        # "std": std,
     }
     if models[0].store_IDS:
         IDS_res = [m.IDS_results for m in models]
