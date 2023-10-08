@@ -25,7 +25,10 @@ def get_args():
     parser.add_argument("--game", type=str, default="Synthetic-v3")
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--fg-lambda", type=float, default=1.0)
-    parser.add_argument("--noise_dim", type=int, default=4)
+    parser.add_argument("--NpS", type=int, default=20)
+    parser.add_argument("--action-noise", type=str, default="sgs")
+    parser.add_argument("--update-noise", type=str, default="sgs")
+    parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=0)
@@ -35,7 +38,6 @@ def get_args():
     parser.add_argument("--n-expe", type=int, default=3)
     parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
-    parser.add_argument("--norm-noise", type=int, default=0, choices=[0, 1])
     parser.add_argument("--logdir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
     return args
@@ -56,6 +58,9 @@ hyper_params = {
     "update_num": args.update_num,
     "batch_size": args.batch_size,
     "hidden_sizes": args.hidden_sizes,
+    "NpS": args.NpS,
+    "action_noise": args.action_noise,
+    "update_noise": args.update_noise,
     "fg_lambda": args.fg_lambda,
     "fg_decay": True,
     "reset": False,

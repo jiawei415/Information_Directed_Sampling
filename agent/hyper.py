@@ -77,6 +77,9 @@ class HyperMAB:
         hidden_sizes=(),
         optim="Adam",
         update_num=2,
+        NpS=20,
+        action_noise="sgs",
+        update_noise="pn",
         reset=False,
     ):
         """
@@ -99,6 +102,9 @@ class HyperMAB:
             target_noise_coef=self.eta,
             norm_coef=norm_coef,
             buffer_size=T,
+            NpS=NpS,
+            action_noise=action_noise,
+            update_noise=update_noise,
             reset=reset,
         )
 

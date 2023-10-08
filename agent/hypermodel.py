@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
+import itertools as it
 import numpy as np
 import torch
 import torch.nn as nn
@@ -277,6 +278,8 @@ class HyperModel:
         target_noise_coef: float = 0.01,
         buffer_size: int = 10000,
         NpS: int = 20,
+        action_noise: str = "sgs",
+        update_noise: str = "pn",
         reset: bool = False,
     ):
 
@@ -296,6 +299,8 @@ class HyperModel:
         self.norm_coef = norm_coef
         self.target_noise_coef = target_noise_coef
         self.buffer_size = buffer_size
+        self.action_noise = action_noise
+        self.update_noise = update_noise
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         self.__init_model_optimizer()
@@ -359,7 +364,7 @@ class HyperModel:
         r_batch = torch.FloatTensor(r_batch).to(self.device)
         s_batch = torch.FloatTensor(s_batch).to(self.device)
 
-        update_noise = self.generate_noise((self.batch_size, self.NpS)) # sample noise for update
+        update_noise = self.generate_update_noise((self.batch_size, self.NpS), self.update_noise) # sample noise for update
         target_noise = torch.mul(z_batch.unsqueeze(1), update_noise).sum(-1) * self.target_noise_coef # noise for target
         predict = self.model(update_noise, f_batch)
         diff = target_noise + r_batch.unsqueeze(-1) - predict
@@ -381,26 +386,63 @@ class HyperModel:
 
     def get_thetas(self, M=1):
         assert len(self.hidden_sizes) == 0, f'hidden size > 0'
-        action_noise = self.generate_noise((M,))
+        action_noise = self.generate_action_noise((M,), self.action_noise)
         with torch.no_grad():
             thetas = self.model.out.get_thetas(action_noise).cpu().numpy()
         return thetas
 
     def predict(self, features, M=1):
-        action_noise = self.generate_noise((M,))
+        action_noise = self.generate_action_noise((M,), self.action_noise)
         with torch.no_grad():
             p_a = self.model(action_noise, features).cpu().numpy()
         return p_a
 
-    def generate_noise(self, noise_num):
-        noise_shape = noise_num + (self.noise_dim, )
-        noise = torch.randn(noise_shape).type(torch.float32)
-        return noise.to(self.device)
+    def generate_action_noise(self, noise_num, noise_type):
+        if noise_type == "gs":
+            noise =  self.gen_gs_noise(noise_num)
+        elif noise_type == "sp":
+            noise =  self.gen_sp_noise(noise_num)
+        elif noise_type == "sgs":
+            noise =  self.gen_sgs_noise(noise_num)
+        elif noise_type == "oh":
+            noise =  self.gen_one_hot_noise(noise_num)
+        elif noise_type == "pn":
+            noise =  self.gen_pn_one_noise(noise_num)
+        return noise
+
+    def generate_update_noise(self, noise_num, noise_type):
+        if noise_type == "gs":
+            noise =  self.gen_gs_noise(noise_num)
+        elif noise_type == "sp":
+            noise =  self.gen_sp_noise(noise_num)
+        elif noise_type == "sgs":
+            noise =  self.gen_sgs_noise(noise_num)
+        elif noise_type == "oh":
+            batch_size = noise_num[0]
+            noise = torch.arange(self.noise_dim).unsqueeze(0).repeat(batch_size, 1)
+            noise = F.one_hot(noise, self.noise_dim).to(torch.float32).to(self.device)
+        elif noise_type == "pn":
+            batch_size = noise_num[0]
+            noise = np.array(list((it.product(range(2), repeat=self.noise_dim))))
+            noise[np.where(noise==0)] = -1
+            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
+            noise = noise.unsqueeze(0).repeat(batch_size, 1, 1)
+        return noise
 
     def gen_gs_noise(self, noise_num):
         noise_shape = noise_num + (self.noise_dim, )
         noise = torch.randn(noise_shape).type(torch.float32)
         return noise.to(self.device)
+
+    def gen_sp_noise(self, noise_num):
+        noise = self.gen_gs_noise(noise_num)
+        noise /= torch.norm(noise, dim=-1, keepdim=True)
+        return noise
+
+    def gen_sgs_noise(self, noise_num):
+        noise = self.gen_gs_noise(noise_num)
+        noise /= np.sqrt(self.noise_dim)
+        return noise
 
     def gen_one_hot_noise(self, noise_num: tuple):
         noise = torch.randint(0, self.noise_dim, noise_num)
