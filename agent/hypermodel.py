@@ -424,7 +424,7 @@ class HyperModel:
         elif noise_type == "pn":
             batch_size = noise_num[0]
             noise = np.array(list((it.product(range(2), repeat=self.noise_dim))))
-            noise[np.where(noise==0)] = -1
+            noise = noise * 2 - 1
             noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
             noise = noise.unsqueeze(0).repeat(batch_size, 1, 1)
         return noise
