@@ -24,6 +24,7 @@ cmap = {
 
 
 mapping_methods_labels = {
+    "Hyper": "Hyper",
     "LinUCB": "LinUCB",
     "LinUCB:test": "red-test",
     "BayesUCB": "BayesUCB",
@@ -59,6 +60,7 @@ mapping_methods_labels = {
 
 
 mapping_methods_colors = {
+    "Hyper": "blue",
     "LinUCB": "green",
     "LinUCB:test": "red",
     "BayesUCB": "purple",
@@ -176,10 +178,8 @@ def plotRegret(labels, regret, colors, title, path, log=False):
     all_regrets = regret["all_regrets"]
     mean_regret = regret["mean_regret"]
     plt.figure(figsize=(10, 8), dpi=80)
-    # plt.rcParams["figure.figsize"] = (16, 9)
 
     T = mean_regret.shape[1]
-    print(T)
     for i, l in enumerate(labels):
         c = cmap[i] if not colors else colors[i]
         x = np.arange(T)
