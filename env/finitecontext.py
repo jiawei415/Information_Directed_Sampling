@@ -269,7 +269,7 @@ class SyntheticNonlinModel:
 
     def reward_fn3(self, feature):
         prob = self.reward_model(feature)
-        reward = prob # np.random.binomial(1, prob)
+        reward = self.prior_random.binomial(1, prob)
         return reward
 
     def reward(self, arm):
