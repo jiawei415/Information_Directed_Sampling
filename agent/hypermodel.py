@@ -274,7 +274,7 @@ class HyperModel:
         optim: str = 'Adam',
         fg_lambda: float = 0.0,
         fg_decay: bool = True,
-        norm_coef: float = 0.01,
+        weight_decay: float = 0.01,
         target_noise_coef: float = 0.01,
         buffer_size: int = 10000,
         NpS: int = 20,
@@ -296,7 +296,7 @@ class HyperModel:
         self.batch_size = batch_size
         self.NpS = NpS
         self.optim = optim
-        self.norm_coef = norm_coef
+        self.weight_decay = weight_decay
         self.target_noise_coef = target_noise_coef
         self.buffer_size = buffer_size
         self.action_noise = action_noise
@@ -316,9 +316,9 @@ class HyperModel:
         print(f"\nNetwork structure:\n{str(self.model)}")
          # init optimizer
         if self.optim == "Adam":
-            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
+            self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         elif self.optim == "SGD":
-            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, momentum=0.9)
+            self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay, momentum=0.9)
         else:
             raise NotImplementedError
 
@@ -376,9 +376,9 @@ class HyperModel:
             loss = (diff - fg_lambda * fg_term).mean()
         else:
             loss = diff.mean()
-        norm_coef = self.norm_coef / len(self.buffer)
-        reg_loss = self.model.regularization(update_noise) * norm_coef
-        loss += reg_loss
+        # norm_coef = self.norm_coef / len(self.buffer)
+        # reg_loss = self.model.regularization(update_noise) * norm_coef
+        # loss += reg_loss
 
         self.optimizer.zero_grad()
         loss.backward()

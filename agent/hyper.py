@@ -123,6 +123,61 @@ class HyperMAB:
                 model.update()
         return reward, expected_regret
 
+
+    def Hyper(
+        self,
+        T,
+        noise_dim=2,
+        lr=0.01,
+        weight_decay=0.01,
+        batch_size=32,
+        hidden_sizes=(),
+        optim="Adam",
+        update_num=2,
+        update_start=32,
+        NpS=20,
+        action_noise="gs",
+        update_noise="pn",
+    ):
+        """
+        Implementation of Thomson Sampling (TS) algorithm for Linear Bandits with multivariate normal prior
+        :param T: int, time horizon
+        :return: np.arrays, reward and regret obtained by the policy
+        """
+        model = HyperModel(
+            noise_dim,
+            self.n_a,
+            self.d,
+            hidden_sizes=hidden_sizes,
+            prior_std=self.prior_sigma,
+            lr=lr,
+            batch_size=batch_size,
+            optim=optim,
+            target_noise_coef=self.eta,
+            weight_decay=weight_decay,
+            buffer_size=T,
+            NpS=NpS,
+            action_noise=action_noise,
+            update_noise=update_noise,
+        )
+
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        for t in range(T):
+            self.set_context()
+            value = model.predict(self.features)[0]
+            a_t = rd_argmax(value)
+            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
+
+            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            model.put(transitions)
+            # update hypermodel
+            if t >= update_start:
+                for _ in range(update_num):
+                    model.update()
+        return reward, expected_regret
+
+
     def computeVIDS_v1(self, thetas):
         """
         Implementation of linearSampleVIR (algorithm 6 in Russo & Van Roy, p. 244) applied for Linear  Bandits with
