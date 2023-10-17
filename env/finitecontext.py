@@ -201,7 +201,7 @@ class SyntheticNonlinModel:
         n_features=50,
         n_actions=20,
         all_actions=100,
-        eta=np.sqrt(0.1),
+        eta=0.1,
         sigma=1,
         reward_version="v1",
     ):
@@ -249,7 +249,7 @@ class SyntheticNonlinModel:
 
     def set_context(self):
         action_set = np.arange(self.all_actions, dtype=np.int32)
-        sub_action_set = np.random.choice(
+        sub_action_set = self.prior_random.choice(
             action_set, size=self.sub_actions, replace=False
         )
         self.features = self.all_features[sub_action_set]
