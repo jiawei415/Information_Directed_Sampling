@@ -30,8 +30,9 @@ def get_args():
     # algorithm config
     parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--weight-decay", type=float, default=0.01)
+    parser.add_argument("--weight-decay", type=float, default=0)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
+    parser.add_argument("--z-coef", type=float, default=None)
     parser.add_argument("--NpS", type=int, default=20)
     parser.add_argument("--action-noise", type=str, default="gs")
     parser.add_argument("--update-noise", type=str, default="pn")
@@ -59,6 +60,7 @@ param = {
         "noise_dim": args.noise_dim,
         "lr": args.lr,
         "weight_decay": args.weight_decay,
+        "z_coef": args.z_coef,
         "optim": args.optim,
         "update_start": args.update_start,
         "update_num": args.update_num,

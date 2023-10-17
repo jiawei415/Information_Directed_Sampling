@@ -130,6 +130,7 @@ class HyperMAB:
         noise_dim=2,
         lr=0.01,
         weight_decay=0.01,
+        z_coef=None,
         batch_size=32,
         hidden_sizes=(),
         optim="Adam",
@@ -144,6 +145,7 @@ class HyperMAB:
         :param T: int, time horizon
         :return: np.arrays, reward and regret obtained by the policy
         """
+        z_coef = z_coef or self.eta
         model = HyperModel(
             noise_dim,
             self.n_a,
@@ -153,7 +155,7 @@ class HyperMAB:
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=self.eta,
+            target_noise_coef=z_coef,
             weight_decay=weight_decay,
             buffer_size=T,
             NpS=NpS,

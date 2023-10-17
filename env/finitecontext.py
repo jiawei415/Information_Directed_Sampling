@@ -225,7 +225,7 @@ class SyntheticNonlinModel:
             theta = self.prior_random.normal(0, sigma, size=n_features)
             self.real_theta = theta / np.linalg.norm(theta)
         elif reward_version == "v3":
-            self.set_reward_model(n_features)
+            self.set_reward_model(n_features, prior_random_state)
             self.reward_fn = getattr(self, "reward_fn3")
         else:
             raise NotImplementedError
@@ -255,7 +255,9 @@ class SyntheticNonlinModel:
         self.features = self.all_features[sub_action_set]
         self.sub_rewards = self.all_rewards[sub_action_set]
 
-    def set_reward_model(self, input_dim):
+    def set_reward_model(self, input_dim, seed):
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         self.reward_model = MLP(input_dim, device=device).to(device)
 
