@@ -25,6 +25,8 @@ cmap = {
 
 mapping_methods_labels = {
     "Hyper": "Hyper",
+    "EpiNet": "EpiNet",
+    "Ensemble": "Ensemble",
     "LinUCB": "LinUCB",
     "LinUCB:test": "red-test",
     "BayesUCB": "BayesUCB",
@@ -61,6 +63,8 @@ mapping_methods_labels = {
 
 mapping_methods_colors = {
     "Hyper": "blue",
+    "EpiNet": "green",
+    "Ensemble": "red",
     "LinUCB": "green",
     "LinUCB:test": "red",
     "BayesUCB": "purple",

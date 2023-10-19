@@ -23,7 +23,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     # environment config
     parser.add_argument("--game", type=str, default="Synthetic-v3")
-    parser.add_argument("--time-period", type=int, default=50)
+    parser.add_argument("--time-period", type=int, default=200)
     parser.add_argument("--n-features", type=int, default=50)
     parser.add_argument("--n-arms", type=int, default=20)
     parser.add_argument("--n-context", type=int, default=1)
@@ -55,8 +55,7 @@ path = os.path.expanduser(os.path.join(args.logdir, game, dir))
 os.makedirs(path, exist_ok=True)
 
 args.hidden_sizes = [args.hidden_size] * args.hidden_layer
-param = {
-    "Hyper": {
+based_param = {
         "noise_dim": args.noise_dim,
         "lr": args.lr,
         "weight_decay": args.weight_decay,
@@ -69,10 +68,30 @@ param = {
         "NpS": args.NpS,
         "action_noise": args.action_noise,
         "update_noise": args.update_noise,
-    }
+}
+param = {
+    "Hyper": {
+        **based_param,
+        "action_noise": args.action_noise,
+        "update_noise": args.update_noise,
+    },
+    # "EpiNet": {
+    #     **based_param,
+    #     "action_noise": args.action_noise,
+    #     "update_noise": args.update_noise,
+    # },
+    # "Ensemble": {
+    #     **based_param,
+    #     "action_noise": "oh",
+    #     "update_noise": "oh",
+    # },
 }
 
-methods = ["Hyper"]
+methods = [
+    "Hyper",
+    # "EpiNet",
+    # "Ensemble",
+]
 
 game_config = {
     "Synthetic-v1": {"n_features": args.n_features, "n_arms": args.n_arms, "T": args.time_period},

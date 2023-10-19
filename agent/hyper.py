@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils import rd_argmax
-from agent.hypermodel import HyperModel
+from agent.hypermodel import HyperSolution
 
 
 class HyperMAB:
@@ -88,7 +88,7 @@ class HyperMAB:
         :return: np.arrays, reward and regret obtained by the policy
         """
         norm_coef = (self.eta / self.prior_sigma) ** 2
-        model = HyperModel(
+        model = HyperSolution(
             noise_dim,
             self.n_a,
             self.d,
@@ -123,7 +123,6 @@ class HyperMAB:
                 model.update()
         return reward, expected_regret
 
-
     def Hyper(
         self,
         T,
@@ -140,13 +139,8 @@ class HyperMAB:
         action_noise="gs",
         update_noise="pn",
     ):
-        """
-        Implementation of Thomson Sampling (TS) algorithm for Linear Bandits with multivariate normal prior
-        :param T: int, time horizon
-        :return: np.arrays, reward and regret obtained by the policy
-        """
         z_coef = z_coef or self.eta
-        model = HyperModel(
+        model = HyperSolution(
             noise_dim,
             self.n_a,
             self.d,
@@ -179,6 +173,106 @@ class HyperMAB:
                     model.update()
         return reward, expected_regret
 
+    def EpiNet(
+        self,
+        T,
+        noise_dim=2,
+        lr=0.01,
+        weight_decay=0.01,
+        z_coef=None,
+        batch_size=32,
+        hidden_sizes=(),
+        optim="Adam",
+        update_num=2,
+        update_start=32,
+        NpS=20,
+        action_noise="gs",
+        update_noise="pn",
+    ):
+        z_coef = z_coef or self.eta
+        model = HyperSolution(
+            noise_dim,
+            self.n_a,
+            self.d,
+            hidden_sizes=hidden_sizes,
+            prior_std=self.prior_sigma,
+            lr=lr,
+            batch_size=batch_size,
+            optim=optim,
+            target_noise_coef=z_coef,
+            weight_decay=weight_decay,
+            buffer_size=T,
+            NpS=NpS,
+            action_noise=action_noise,
+            update_noise=update_noise,
+            model_type="epinet"
+        )
+
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        for t in range(T):
+            self.set_context()
+            value = model.predict(self.features)[0]
+            a_t = rd_argmax(value)
+            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
+
+            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            model.put(transitions)
+            # update hypermodel
+            if t >= update_start:
+                for _ in range(update_num):
+                    model.update()
+        return reward, expected_regret
+
+    def Ensemble(
+        self,
+        T,
+        noise_dim=2,
+        lr=0.01,
+        weight_decay=0.01,
+        z_coef=None,
+        batch_size=32,
+        hidden_sizes=(),
+        optim="Adam",
+        update_num=2,
+        update_start=32,
+        NpS=20,
+        action_noise="gs",
+        update_noise="pn",
+    ):
+        z_coef = z_coef or self.eta
+        model = HyperSolution(
+            noise_dim,
+            self.n_a,
+            self.d,
+            hidden_sizes=hidden_sizes,
+            prior_std=self.prior_sigma,
+            lr=lr,
+            batch_size=batch_size,
+            optim=optim,
+            target_noise_coef=z_coef,
+            weight_decay=weight_decay,
+            buffer_size=T,
+            NpS=NpS,
+            action_noise=action_noise,
+            update_noise=update_noise,
+        )
+
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        for t in range(T):
+            self.set_context()
+            value = model.predict(self.features)[0]
+            a_t = rd_argmax(value)
+            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
+
+            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            model.put(transitions)
+            # update hypermodel
+            if t >= update_start:
+                for _ in range(update_num):
+                    model.update()
+        return reward, expected_regret
 
     def computeVIDS_v1(self, thetas):
         """
@@ -324,7 +418,7 @@ class HyperMAB:
         :return: np.arrays, reward and regret obtained by the policy
         """
         norm_coef = (self.eta / self.prior_sigma) ** 2
-        model = HyperModel(
+        model = HyperSolution(
             noise_dim,
             self.n_a,
             self.d,
@@ -409,7 +503,7 @@ class HyperMAB:
         :return: np.arrays, reward and regret obtained by the policy
         """
         norm_coef = (self.eta / self.prior_sigma) ** 2
-        model = HyperModel(
+        model = HyperSolution(
             noise_dim,
             self.n_a,
             self.d,

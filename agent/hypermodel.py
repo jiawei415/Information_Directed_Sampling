@@ -6,6 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from .epinet import EpiNet
+
 
 def mlp(input_dim, hidden_sizes, linear_layer=nn.Linear):
     model = []
@@ -174,7 +176,7 @@ class HyperLinear(nn.Module):
         return theta
 
 
-class Net(nn.Module):
+class HyperNet(nn.Module):
     def __init__(
         self,
         in_features: int,
@@ -259,7 +261,7 @@ class ReplayBuffer:
         return self._sample(index)
 
 
-class HyperModel:
+class HyperSolution:
     def __init__(
         self,
         noise_dim: int,
@@ -280,6 +282,7 @@ class HyperModel:
         NpS: int = 20,
         action_noise: str = "sgs",
         update_noise: str = "pn",
+        model_type: str = "hyper",
         reset: bool = False,
     ):
 
@@ -302,6 +305,7 @@ class HyperModel:
         self.action_noise = action_noise
         self.update_noise = update_noise
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model_type = model_type
 
         self.__init_model_optimizer()
         self.__init_buffer()
@@ -309,6 +313,10 @@ class HyperModel:
 
     def __init_model_optimizer(self):
         # init hypermodel
+        if self.model_type == "hyper":
+            Net = HyperNet
+        elif self.model_type == "epinet":
+            Net = EpiNet
         self.model = Net(
             self.feature_dim, self.hidden_sizes, self.noise_dim, self.prior_std,
             self.prior_scale, self.posterior_scale, device=self.device
