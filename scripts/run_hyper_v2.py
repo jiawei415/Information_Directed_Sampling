@@ -75,22 +75,23 @@ param = {
         "action_noise": args.action_noise,
         "update_noise": args.update_noise,
     },
-    # "EpiNet": {
-    #     **based_param,
-    #     "action_noise": args.action_noise,
-    #     "update_noise": args.update_noise,
-    # },
-    # "Ensemble": {
-    #     **based_param,
-    #     "action_noise": "oh",
-    #     "update_noise": "oh",
-    # },
+    "EpiNet": {
+        **based_param,
+        "action_noise": "gs",
+        "update_noise": "gs",
+        "NpS": 1,
+    },
+    "Ensemble": {
+        **based_param,
+        "action_noise": "oh",
+        "update_noise": "oh",
+    },
 }
 
 methods = [
     "Hyper",
-    # "EpiNet",
-    # "Ensemble",
+    "EpiNet",
+    "Ensemble",
 ]
 
 game_config = {

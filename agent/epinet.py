@@ -6,15 +6,17 @@ import torch.nn as nn
 
 ModuleType = Type[nn.Module]
 
-def mlp(input_dim, hidden_sizes, linear_layer=nn.Linear):
-    model = []
-    if len(hidden_sizes) > 0 :
-        hidden_sizes = [input_dim] + list(hidden_sizes)
-        for i in range(1, len(hidden_sizes)):
-            model += [linear_layer(hidden_sizes[i-1], hidden_sizes[i])]
-            model += [nn.ReLU(inplace=True)]
-    model = nn.Sequential(*model)
-    return model
+def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
+    if len(hidden_sizes) == 0:
+        return nn.Linear(inp_dim, out_dim, bias=bias)
+    model = [nn.Linear(inp_dim, hidden_sizes[0], bias=bias)]
+    model += [nn.ReLU(inplace=True)]
+    for i in range(1, len(hidden_sizes)):
+        model += [nn.Linear(hidden_sizes[i-1], hidden_sizes[i], bias=bias)]
+        model += [nn.ReLU(inplace=True)]
+    if out_dim != 0:
+        model += [nn.Linear(hidden_sizes[-1], out_dim, bias=bias)]
+    return nn.Sequential(*model)
 
 
 class EnsemblePrior(nn.Module):
@@ -27,7 +29,7 @@ class EnsemblePrior(nn.Module):
     ):
         super().__init__()
         self.basedmodel = nn.ModuleList([
-            mlp(in_features, ensemble_sizes + [1]) for _ in range(ensemble_num)
+            mlp(in_features, 1, ensemble_sizes) for _ in range(ensemble_num)
         ])
 
         self.device = device
@@ -57,7 +59,7 @@ class EpiLinear(nn.Module):
         self.epinet_init = epinet_init
         self.in_features = noise_dim + hidden_dim + state_dim
         self.out_features = noise_dim
-        self.epinet = mlp(self.in_features, epinet_sizes + [self.out_features])
+        self.epinet = mlp(self.in_features, self.out_features, epinet_sizes)
         if prior_scale > 0:
             self.priornet = EnsemblePrior(state_dim, device, noise_dim)
             for param in self.priornet.parameters():
@@ -113,7 +115,7 @@ class EpiNet(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.basedmodel = mlp(in_features, hidden_sizes)
+        self.basedmodel = mlp(in_features, 0, hidden_sizes)
         self.based_out = nn.Linear(hidden_sizes[-1], 1)
 
         based_in_feature = self.based_out.in_features
