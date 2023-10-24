@@ -27,8 +27,9 @@ def get_args():
     parser.add_argument("--n-features", type=int, default=50)
     parser.add_argument("--n-arms", type=int, default=20)
     parser.add_argument("--n-context", type=int, default=1)
+    parser.add_argument("--data-name", type=str, default="mushroom")
     # algorithm config
-    parser.add_argument("--noise-dim", type=int, default=8)
+    parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
@@ -106,6 +107,7 @@ game_config = {
     "Synthetic-v1": base_config,
     "Synthetic-v2": base_config,
     "Synthetic-v3": base_config,
+    "RealData": {**base_config, "data_name": args.data_name},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:

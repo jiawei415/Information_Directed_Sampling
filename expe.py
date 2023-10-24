@@ -20,6 +20,7 @@ from env.infinitecontext import (
     InfiniteContextPaperLinModel,
     InfiniteContextFreqPaperLinModel,
 )
+from env.data_multi import Bandit_multi
 from utils import (
     plotRegret,
     storeRegret,
@@ -277,6 +278,7 @@ def FiniteContextHyperMAB_expe(
     path,
     problem="FreqRusso",
     doplot=True,
+    data_name=None,
 ):
     """
     Compute regrets for a given set of algorithms (methods) over t=1,...,T and for n_expe number of independent
@@ -291,6 +293,7 @@ def FiniteContextHyperMAB_expe(
     :param colors: list, colors for the curves
     :param doplot: boolean, plot the curves or not
     :param problem: str, choose from {'FreqRusso', 'Zhang', 'Russo', 'movieLens'}
+    :param data_name: str, choose dataset for RealData Bandit
     :param path: str
     :return: dict, regrets, quantiles, means, stds of final regrets for each methods
     """
@@ -348,6 +351,10 @@ def FiniteContextHyperMAB_expe(
             for _ in range(n_expe)
         ]
         title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: v3"
+    elif problem == "RealData":
+        assert data_name is not None
+        models = [HyperMAB(Bandit_multi(data_name)) for _ in range(n_expe)]
+        title = f"Real Bandit Model  - {data_name}"
     else:
         raise NotImplementedError
 
