@@ -36,6 +36,7 @@ def get_args():
     parser.add_argument("--NpS", type=int, default=20)
     parser.add_argument("--action-noise", type=str, default="gs")
     parser.add_argument("--update-noise", type=str, default="pn")
+    parser.add_argument("--buffer-noise", type=str, default="sp")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
@@ -68,6 +69,7 @@ based_param = {
     "NpS": args.NpS,
     "action_noise": args.action_noise,
     "update_noise": args.update_noise,
+    "buffer_noise": args.buffer_noise,
 }
 param = {
     "Hyper": {
@@ -85,6 +87,7 @@ param = {
         **based_param,
         "action_noise": "oh",
         "update_noise": "oh",
+        "buffer_noise": "gs",
     },
 }
 

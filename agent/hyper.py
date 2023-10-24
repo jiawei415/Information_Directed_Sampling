@@ -1,7 +1,7 @@
 import numpy as np
 
 from utils import rd_argmax
-from agent.hypermodel import HyperSolution
+from agent.hypersolution import HyperSolution
 
 
 class HyperMAB:
@@ -55,7 +55,9 @@ class HyperMAB:
         :param T: int, time horizon
         :return: np.arrays, reward and regret obtained by the policy
         """
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
+            T, dtype=np.float32
+        )
         mu_t, sigma_t = self.initPrior()
         for t in range(T):
             self.set_context()
@@ -99,7 +101,7 @@ class HyperMAB:
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=self.eta,
+            noise_coef=self.eta,
             norm_coef=norm_coef,
             buffer_size=T,
             NpS=NpS,
@@ -108,7 +110,9 @@ class HyperMAB:
             reset=reset,
         )
 
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
+            T, dtype=np.float32
+        )
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)[0]
@@ -136,8 +140,9 @@ class HyperMAB:
         update_num=2,
         update_start=32,
         NpS=20,
-        action_noise="gs",
-        update_noise="pn",
+        action_noise="pn",
+        update_noise="gs",
+        buffer_noise="sp",
     ):
         z_coef = z_coef or self.eta
         model = HyperSolution(
@@ -145,19 +150,22 @@ class HyperMAB:
             self.n_a,
             self.d,
             hidden_sizes=hidden_sizes,
-            prior_std=self.prior_sigma,
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=z_coef,
+            noise_coef=z_coef,
             weight_decay=weight_decay,
             buffer_size=T,
             NpS=NpS,
             action_noise=action_noise,
             update_noise=update_noise,
+            buffer_noise=buffer_noise,
+            model_type="hyper",
         )
 
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
+            T, dtype=np.float32
+        )
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)[0]
@@ -187,7 +195,8 @@ class HyperMAB:
         update_start=32,
         NpS=20,
         action_noise="gs",
-        update_noise="pn",
+        update_noise="gs",
+        buffer_noise="sp",
     ):
         z_coef = z_coef or self.eta
         model = HyperSolution(
@@ -195,20 +204,22 @@ class HyperMAB:
             self.n_a,
             self.d,
             hidden_sizes=hidden_sizes,
-            prior_std=self.prior_sigma,
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=z_coef,
+            noise_coef=z_coef,
             weight_decay=weight_decay,
             buffer_size=T,
             NpS=NpS,
             action_noise=action_noise,
             update_noise=update_noise,
-            model_type="epinet"
+            buffer_noise=buffer_noise,
+            model_type="epinet",
         )
 
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
+            T, dtype=np.float32
+        )
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)[0]
@@ -237,8 +248,9 @@ class HyperMAB:
         update_num=2,
         update_start=32,
         NpS=20,
-        action_noise="gs",
-        update_noise="pn",
+        action_noise="oh",
+        update_noise="oh",
+        buffer_noise="gs",
     ):
         z_coef = z_coef or self.eta
         model = HyperSolution(
@@ -246,19 +258,22 @@ class HyperMAB:
             self.n_a,
             self.d,
             hidden_sizes=hidden_sizes,
-            prior_std=self.prior_sigma,
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=z_coef,
+            noise_coef=z_coef,
             weight_decay=weight_decay,
             buffer_size=T,
             NpS=NpS,
             action_noise=action_noise,
             update_noise=update_noise,
+            buffer_noise=buffer_noise,
+            model_type="ensemble",
         )
 
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
+            T, dtype=np.float32
+        )
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)[0]
@@ -429,7 +444,7 @@ class HyperMAB:
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=self.eta,
+            noise_coef=self.eta,
             norm_coef=norm_coef,
             buffer_size=T,
             reset=reset,
@@ -514,7 +529,7 @@ class HyperMAB:
             lr=lr,
             batch_size=batch_size,
             optim=optim,
-            target_noise_coef=self.eta,
+            noise_coef=self.eta,
             norm_coef=norm_coef,
             buffer_size=T,
             reset=reset,

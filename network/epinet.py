@@ -6,13 +6,14 @@ import torch.nn as nn
 
 ModuleType = Type[nn.Module]
 
+
 def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
     if len(hidden_sizes) == 0:
         return nn.Linear(inp_dim, out_dim, bias=bias)
     model = [nn.Linear(inp_dim, hidden_sizes[0], bias=bias)]
     model += [nn.ReLU(inplace=True)]
     for i in range(1, len(hidden_sizes)):
-        model += [nn.Linear(hidden_sizes[i-1], hidden_sizes[i], bias=bias)]
+        model += [nn.Linear(hidden_sizes[i - 1], hidden_sizes[i], bias=bias)]
         model += [nn.ReLU(inplace=True)]
     if out_dim != 0:
         model += [nn.Linear(hidden_sizes[-1], out_dim, bias=bias)]
@@ -28,15 +29,17 @@ class EnsemblePrior(nn.Module):
         ensemble_sizes: Sequence[int] = [5],
     ):
         super().__init__()
-        self.basedmodel = nn.ModuleList([
-            mlp(in_features, 1, ensemble_sizes) for _ in range(ensemble_num)
-        ])
+        self.basedmodel = nn.ModuleList(
+            [mlp(in_features, 1, ensemble_sizes) for _ in range(ensemble_num)]
+        )
 
         self.device = device
         self.ensemble_num = ensemble_num
         self.head_list = list(range(self.ensemble_num))
 
-    def forward(self, x: torch.Tensor, noise: torch.Tensor = None) -> Tuple[torch.Tensor, Any]:
+    def forward(
+        self, x: torch.Tensor, noise: torch.Tensor = None
+    ) -> Tuple[torch.Tensor, Any]:
         out = [self.basedmodel[k](x) for k in self.head_list]
         out = torch.hstack(out)
         out = torch.einsum("bz, bnz -> bn", out, noise)
@@ -50,8 +53,8 @@ class EpiLinear(nn.Module):
         state_dim: int,
         hidden_dim: int,
         epinet_sizes: Sequence[int],
-        prior_scale: float = 1.,
-        posterior_scale: float = 1.,
+        prior_scale: float = 1.0,
+        posterior_scale: float = 1.0,
         epinet_init: str = "xavier_normal",
         device: Union[str, int, torch.device] = "cpu",
     ) -> None:
@@ -73,18 +76,22 @@ class EpiLinear(nn.Module):
 
     def reset_parameters(self):
         for name, param in self.named_parameters():
-            if 'bias' in name:
+            if "bias" in name:
                 torch.nn.init.zeros_(param)
-            elif 'weight' in name:
+            elif "weight" in name:
                 if self.epinet_init == "trunc_normal":
                     bound = 1.0 / np.sqrt(param.shape[-1])
-                    torch.nn.init.trunc_normal_(param, std=bound, a=-2*bound, b=2*bound)
+                    torch.nn.init.trunc_normal_(
+                        param, std=bound, a=-2 * bound, b=2 * bound
+                    )
                 elif self.epinet_init == "xavier_uniform":
                     torch.nn.init.xavier_uniform_(param, gain=1.0)
                 elif self.epinet_init == "xavier_normal":
                     torch.nn.init.xavier_normal_(param, gain=1.0)
 
-    def forward(self, x: torch.Tensor, feature: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, feature: torch.Tensor, z: torch.Tensor
+    ) -> torch.Tensor:
         batch_size = x.shape[0]
         epinet_inp = torch.cat([x, feature], dim=-1)
         if len(z.shape) == 2:
@@ -93,7 +100,7 @@ class EpiLinear(nn.Module):
         epinet_inp = torch.cat([epinet_inp, z], dim=-1)
         out = self.epinet(epinet_inp)
         out = out.view(batch_size, -1, self.noise_dim)
-        out = torch.einsum('bsn, bsn -> bs', out, z)
+        out = torch.einsum("bsn, bsn -> bs", out, z)
         if self.prior_scale > 0:
             prior_out = self.priornet(x, z)
             out = out * self.posterior_scale + prior_out * self.prior_scale
@@ -107,7 +114,6 @@ class EpiNet(nn.Module):
         in_features: int,
         hidden_sizes: Sequence[int] = (),
         noise_dim: int = 2,
-        prior_std: float = 1.0,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         feature_sg: bool = True,
@@ -120,7 +126,13 @@ class EpiNet(nn.Module):
 
         based_in_feature = self.based_out.in_features
         self.epi_out = EpiLinear(
-            noise_dim, in_features, based_in_feature, [15], prior_scale, posterior_scale, device=device
+            noise_dim,
+            in_features,
+            based_in_feature,
+            [15],
+            prior_scale,
+            posterior_scale,
+            device=device,
         )
         self.feature_sg = feature_sg
         self.device = device
