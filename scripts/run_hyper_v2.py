@@ -56,18 +56,18 @@ os.makedirs(path, exist_ok=True)
 
 args.hidden_sizes = [args.hidden_size] * args.hidden_layer
 based_param = {
-        "noise_dim": args.noise_dim,
-        "lr": args.lr,
-        "weight_decay": args.weight_decay,
-        "z_coef": args.z_coef,
-        "optim": args.optim,
-        "update_start": args.update_start,
-        "update_num": args.update_num,
-        "batch_size": args.batch_size,
-        "hidden_sizes": args.hidden_sizes,
-        "NpS": args.NpS,
-        "action_noise": args.action_noise,
-        "update_noise": args.update_noise,
+    "noise_dim": args.noise_dim,
+    "lr": args.lr,
+    "weight_decay": args.weight_decay,
+    "z_coef": args.z_coef,
+    "optim": args.optim,
+    "update_start": args.update_start,
+    "update_num": args.update_num,
+    "batch_size": args.batch_size,
+    "hidden_sizes": args.hidden_sizes,
+    "NpS": args.NpS,
+    "action_noise": args.action_noise,
+    "update_noise": args.update_noise,
 }
 param = {
     "Hyper": {
@@ -94,10 +94,15 @@ methods = [
     "Ensemble",
 ]
 
+base_config = {
+    "n_features": args.n_features,
+    "n_arms": args.n_arms,
+    "T": args.time_period,
+}
 game_config = {
-    "Synthetic-v1": {"n_features": args.n_features, "n_arms": args.n_arms, "T": args.time_period},
-    "Synthetic-v2": {"n_features": args.n_features, "n_arms": args.n_arms, "T": args.time_period},
-    "Synthetic-v3": {"n_features": args.n_features, "n_arms": args.n_arms, "T": args.time_period},
+    "Synthetic-v1": base_config,
+    "Synthetic-v2": base_config,
+    "Synthetic-v3": base_config,
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:

@@ -6,6 +6,7 @@ import torch.nn.functional as F
 
 from utils import rd_max, sigmoid
 
+
 class MLP(nn.Module):
     def __init__(
         self,
@@ -17,10 +18,10 @@ class MLP(nn.Module):
     ):
         super().__init__()
         model = []
-        if len(hidden_sizes) > 0 :
+        if len(hidden_sizes) > 0:
             hidden_sizes = [input_dim] + list(hidden_sizes)
             for i in range(1, len(hidden_sizes)):
-                model += [nn.Linear(hidden_sizes[i-1], hidden_sizes[i])]
+                model += [nn.Linear(hidden_sizes[i - 1], hidden_sizes[i])]
                 model += [nn.ReLU(inplace=True)]
             model += [nn.Linear(hidden_sizes[-1], output_dim)]
         self.model = nn.Sequential(*model)
@@ -40,6 +41,7 @@ class MLP(nn.Module):
         probs = F.softmax(logits / self.temperature, -1)
         out = rd_max(probs.detach().cpu().numpy())
         return out
+
 
 class ArmGaussianLinear(object):
     def __init__(self, n_context, prior_random_state=2022, reward_random_state=2023):
@@ -230,7 +232,8 @@ class SyntheticNonlinModel:
         else:
             raise NotImplementedError
         self.all_rewards = np.array(
-            [self.reward_fn(self.all_features[arm]) for arm in range(all_actions)], dtype=np.float32
+            [self.reward_fn(self.all_features[arm]) for arm in range(all_actions)],
+            dtype=np.float32,
         )
 
         self.sub_actions = n_actions
@@ -258,7 +261,7 @@ class SyntheticNonlinModel:
     def set_reward_model(self, input_dim, seed):
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        device = "cuda" if torch.cuda.is_available() else "cpu"
         self.reward_model = MLP(input_dim, device=device).to(device)
 
     def reward_fn1(self, feature):
