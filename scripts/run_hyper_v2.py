@@ -27,6 +27,7 @@ def get_args():
     parser.add_argument("--n-features", type=int, default=50)
     parser.add_argument("--n-arms", type=int, default=20)
     parser.add_argument("--n-context", type=int, default=1)
+    parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
     parser.add_argument("--data-name", type=str, default="mushroom")
     # algorithm config
     parser.add_argument("--noise-dim", type=int, default=4)
@@ -82,7 +83,6 @@ param = {
         **based_param,
         "action_noise": "gs",
         "update_noise": "gs",
-        "NpS": 1,
     },
     "Ensemble": {
         **based_param,
@@ -102,6 +102,7 @@ base_config = {
     "n_features": args.n_features,
     "n_arms": args.n_arms,
     "T": args.time_period,
+    "freq_task": args.freq_task,
 }
 game_config = {
     "Synthetic-v1": base_config,

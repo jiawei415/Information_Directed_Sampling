@@ -206,8 +206,9 @@ class SyntheticNonlinModel:
         eta=0.1,
         sigma=1,
         reward_version="v1",
+        freq_task=True,
     ):
-        prior_random_state = 2022
+        prior_random_state = 2022 if freq_task else np.random.randint(1, 312414)
         reward_random_state = np.random.randint(1, 312414)
         self.prior_random = np.random.RandomState(prior_random_state)
         self.reward_random = np.random.RandomState(reward_random_state)

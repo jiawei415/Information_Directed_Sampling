@@ -278,6 +278,7 @@ def FiniteContextHyperMAB_expe(
     path,
     problem="FreqRusso",
     doplot=True,
+    freq_task=True,
     data_name=None,
 ):
     """
@@ -293,6 +294,7 @@ def FiniteContextHyperMAB_expe(
     :param colors: list, colors for the curves
     :param doplot: boolean, plot the curves or not
     :param problem: str, choose from {'FreqRusso', 'Zhang', 'Russo', 'movieLens'}
+    :param freq_task: boolean, Freq MOD for task
     :param data_name: str, choose dataset for RealData Bandit
     :param path: str
     :return: dict, regrets, quantiles, means, stds of final regrets for each methods
@@ -333,24 +335,17 @@ def FiniteContextHyperMAB_expe(
         title = "Linear Gaussian Model (Bayes MOD, Russo and Van Roy, 2018) - n_arms: {} - n_features: {}".format(
             n_arms, n_features
         )
-    elif problem == "Synthetic-v1":
+    elif problem.startswith("Synthetic"):
+        rew_v = problem.split("-")[-1]
         models = [
-            HyperMAB(SyntheticNonlinModel(n_features, n_arms, reward_version="v1"))
+            HyperMAB(
+                SyntheticNonlinModel(
+                    n_features, n_arms, reward_version=rew_v, freq_task=freq_task
+                )
+            )
             for _ in range(n_expe)
         ]
-        title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: v1"
-    elif problem == "Synthetic-v2":
-        models = [
-            HyperMAB(SyntheticNonlinModel(n_features, n_arms, reward_version="v2"))
-            for _ in range(n_expe)
-        ]
-        title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: v2"
-    elif problem == "Synthetic-v3":
-        models = [
-            HyperMAB(SyntheticNonlinModel(n_features, n_arms, reward_version="v3"))
-            for _ in range(n_expe)
-        ]
-        title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: v3"
+        title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: {rew_v}"
     elif problem == "RealData":
         assert data_name is not None
         models = [HyperMAB(Bandit_multi(data_name)) for _ in range(n_expe)]
