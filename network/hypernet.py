@@ -145,6 +145,7 @@ class HyperLinear(nn.Module):
         prior_std: float = 1.0,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
+        use_bias: bool = True,
         device: str = "cpu",
     ):
         super().__init__()
@@ -153,6 +154,7 @@ class HyperLinear(nn.Module):
             hidden_dim=out_features,
             prior_std=prior_std,
             out_type="weight",
+            use_bias=use_bias,
             device=device,
         )
         self.hyper_weight = HyperLayer(
@@ -205,6 +207,7 @@ class HyperNet(nn.Module):
         noise_dim: int = 2,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
+        hyper_bias: bool = True,
         device: Union[str, int, torch.device] = "cpu",
     ):
         super().__init__()
@@ -219,6 +222,7 @@ class HyperNet(nn.Module):
             hyper_out_features,
             prior_scale=prior_scale,
             posterior_scale=posterior_scale,
+            use_bias=hyper_bias,
             device=device,
         )
         self.device = device

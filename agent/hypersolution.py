@@ -129,22 +129,25 @@ class HyperSolution:
 
     def __init_model_optimizer(self):
         # init hypermodel
+        model_param = {
+            "in_features": self.feature_dim,
+            "hidden_sizes": self.hidden_sizes,
+            "noise_dim": self.noise_dim,
+            "prior_scale": self.prior_scale,
+            "posterior_scale": self.posterior_scale,
+            "device": self.device,
+        }
         if self.model_type == "hyper":
             Net = HyperNet
+            model_param.update({"hyper_bias": True})
         elif self.model_type == "epinet":
             Net = EpiNet
         elif self.model_type == "ensemble":
-            Net = EnsembleNet
+            Net = HyperNet
+            model_param.update({"hyper_bias": False})
         else:
             raise NotImplementedError
-        self.model = Net(
-            in_features=self.feature_dim,
-            hidden_sizes=self.hidden_sizes,
-            noise_dim=self.noise_dim,
-            prior_scale=self.prior_scale,
-            posterior_scale=self.posterior_scale,
-            device=self.device,
-        ).to(self.device)
+        self.model = Net(**model_param).to(self.device)
         print(f"\nNetwork structure:\n{str(self.model)}")
         # init optimizer
         if self.optim == "Adam":
