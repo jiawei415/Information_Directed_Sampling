@@ -168,7 +168,7 @@ class HyperMAB:
         )
         for t in range(T):
             self.set_context()
-            value = model.predict(self.features)[0]
+            value = model.predict(self.features)
             a_t = rd_argmax(value)
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
@@ -222,7 +222,7 @@ class HyperMAB:
         )
         for t in range(T):
             self.set_context()
-            value = model.predict(self.features)[0]
+            value = model.predict(self.features)
             a_t = rd_argmax(value)
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
@@ -276,7 +276,7 @@ class HyperMAB:
         )
         for t in range(T):
             self.set_context()
-            value = model.predict(self.features)[0]
+            value = model.predict(self.features)
             a_t = rd_argmax(value)
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)

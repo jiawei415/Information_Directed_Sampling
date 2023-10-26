@@ -23,7 +23,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     # environment config
     parser.add_argument("--game", type=str, default="Synthetic-v3")
-    parser.add_argument("--time-period", type=int, default=200)
+    parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=50)
     parser.add_argument("--n-arms", type=int, default=20)
     parser.add_argument("--n-context", type=int, default=1)
@@ -83,6 +83,7 @@ param = {
         **based_param,
         "action_noise": "gs",
         "update_noise": "gs",
+        "NpS": 1,
     },
     "Ensemble": {
         **based_param,

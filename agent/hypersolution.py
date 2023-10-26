@@ -143,8 +143,7 @@ class HyperSolution:
         elif self.model_type == "epinet":
             Net = EpiNet
         elif self.model_type == "ensemble":
-            Net = HyperNet
-            model_param.update({"hyper_bias": False})
+            Net = EnsembleNet
         else:
             raise NotImplementedError
         self.model = Net(**model_param).to(self.device)

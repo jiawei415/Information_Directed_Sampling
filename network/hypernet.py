@@ -177,12 +177,12 @@ class HyperLinear(nn.Module):
             prior_out = torch.einsum("bd,bad -> ba", prior_theta, prior_x)
         elif x.shape[0] != z.shape[0]:
             # compute action value for one action set
-            out = torch.mm(theta, x.T)
-            prior_out = torch.mm(prior_theta, prior_x.T)
+            out = torch.mm(theta, x.T).squeeze(0)
+            prior_out = torch.mm(prior_theta, prior_x.T).squeeze(0)
         else:
             # compute predict reward in batch
-            out = torch.einsum("bnw,bw -> bn", theta, x)
-            prior_out = torch.einsum("bnw,bw -> bn", prior_theta, prior_x)
+            out = torch.bmm(theta, x.unsqueeze(-1)).squeeze(-1)
+            prior_out = torch.bmm(prior_theta, prior_x.unsqueeze(-1)).squeeze(-1)
 
         out = self.posterior_scale * out + self.prior_scale * prior_out
         return out

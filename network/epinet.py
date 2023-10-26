@@ -104,7 +104,6 @@ class EpiLinear(nn.Module):
         if self.prior_scale > 0:
             prior_out = self.priornet(x, z)
             out = out * self.posterior_scale + prior_out * self.prior_scale
-        out = out.squeeze(1)
         return out
 
 
@@ -145,7 +144,7 @@ class EpiNet(nn.Module):
         if self.feature_sg:
             logits = logits.detach()
         epi_out = self.epi_out(x, logits, z)
-        if len(epi_out.shape) == 3:
-            based_out = based_out.unsqueeze(1).repeat(1, z.shape[1], 1)
         out = epi_out + based_out
+        if z.shape[0] != x.shape[0]:
+            out = out.squeeze(-1)
         return out
