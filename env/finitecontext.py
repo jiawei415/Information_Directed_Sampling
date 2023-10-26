@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import rd_max, sigmoid
+from utils import rd_max
 
 
 class MLP(nn.Module):
@@ -266,15 +266,11 @@ class SyntheticNonlinModel:
         self.reward_model = MLP(input_dim, device=device).to(device)
 
     def reward_fn1(self, feature):
-        logist = 0.01 * feature.T @ self.real_theta @ feature
-        prob = sigmoid(logist)
-        reward = self.prior_random.binomial(1, prob)
+        reward = 0.01 * feature.T @ self.real_theta @ feature
         return reward
 
     def reward_fn2(self, feature):
-        logist = np.exp(-10 * np.dot(feature, self.real_theta) ** 2)
-        prob = sigmoid(logist)
-        reward = self.prior_random.binomial(1, prob)
+        reward = np.exp(-10 * np.dot(feature, self.real_theta) ** 2)
         return reward
 
     def reward_fn3(self, feature):
