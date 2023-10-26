@@ -182,7 +182,7 @@ class HyperLinear(nn.Module):
         else:
             # compute predict reward in batch
             out = torch.einsum("bnw,bw -> bn", theta, x)
-            prior_out = torch.einsum("bnw,bw -> bn", theta, x)
+            prior_out = torch.einsum("bnw,bw -> bn", prior_theta, prior_x)
 
         out = self.posterior_scale * out + self.prior_scale * prior_out
         return out
