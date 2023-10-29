@@ -4,9 +4,12 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import normalize
 import numpy as np
 
+DATA_NAMES = {"v1": "mnist", "v2": "mushroom", "v3": "adult", "v4": "covertype"}
+
 
 class Bandit_multi:
-    def __init__(self, name, is_shuffle=True, eta=0.1, sigma=1):
+    def __init__(self, name_id, is_shuffle=True, eta=0.1, sigma=1):
+        name = DATA_NAMES[name_id]
         prior_random_state = 2022
         reward_random_state = np.random.randint(1, 312414)
         self.prior_random = np.random.RandomState(prior_random_state)

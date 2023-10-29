@@ -279,7 +279,6 @@ def FiniteContextHyperMAB_expe(
     problem="FreqRusso",
     doplot=True,
     freq_task=True,
-    data_name=None,
 ):
     """
     Compute regrets for a given set of algorithms (methods) over t=1,...,T and for n_expe number of independent
@@ -295,7 +294,6 @@ def FiniteContextHyperMAB_expe(
     :param doplot: boolean, plot the curves or not
     :param problem: str, choose from {'FreqRusso', 'Zhang', 'Russo', 'movieLens'}
     :param freq_task: boolean, Freq MOD for task
-    :param data_name: str, choose dataset for RealData Bandit
     :param path: str
     :return: dict, regrets, quantiles, means, stds of final regrets for each methods
     """
@@ -346,10 +344,10 @@ def FiniteContextHyperMAB_expe(
             for _ in range(n_expe)
         ]
         title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: {rew_v}"
-    elif problem == "RealData":
-        assert data_name is not None
-        models = [HyperMAB(Bandit_multi(data_name)) for _ in range(n_expe)]
-        title = f"Real Bandit Model  - {data_name}"
+    elif problem.startswith("RealData"):
+        dn = problem.split("-")[-1]
+        models = [HyperMAB(Bandit_multi(dn)) for _ in range(n_expe)]
+        title = f"Real Bandit Model  - {dn}"
     else:
         raise NotImplementedError
 
