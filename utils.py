@@ -2,12 +2,13 @@
 import numpy as np
 import os
 import csv
-
+import itertools as it
 import random as rd
 import matplotlib.pyplot as plt
 import scipy.stats as st
-from tqdm import tqdm
 import inspect
+
+from tqdm import tqdm
 
 cmap = {
     0: "black",
@@ -156,6 +157,90 @@ def sphere_matrix(N, M):
     v = np.random.randn(N, M).astype(np.float32)
     v /= np.linalg.norm(v, axis=1, keepdims=True)
     return v
+
+
+def random_choice_noreplace(m, n, axis=-1):
+    # m, n are the number of rows, cols of output
+    return np.random.rand(m, n).argsort(axis=axis)
+
+
+def sample_action_noise(noise_type, M, dim=1, sparsity=2):
+    # ensure the sampled vector is isotropic
+    assert M > 0
+    if noise_type == "Sphere":
+        return sphere_matrix(dim, M)
+    elif noise_type == "Gaussian" or noise_type == "Normal":
+        return np.random.normal(0, 1, (dim, M))
+    elif noise_type == "PMCoord":
+        i = np.random.choice(M, dim)
+        B = np.zeros((dim, M))
+        B[np.arange(dim), i] = random_sign(dim)
+        return B
+    elif noise_type == "Sparse":
+        i = random_choice_noreplace(dim, M)[:, :sparsity]
+        B = np.zeros((dim, M))
+        B[np.expand_dims(np.arange(dim), axis=1), i] = random_sign(
+            dim * sparsity
+        ).reshape(dim, sparsity)
+        return B
+    elif noise_type == "SparseConsistent":
+        i = random_choice_noreplace(dim, M)[:, :sparsity]
+        B = np.zeros((dim, M))
+        B[np.expand_dims(np.arange(dim), axis=1), i] = random_sign(dim).reshape(dim, 1)
+        return B
+    elif noise_type == "UnifCube":
+        return 2 * np.random.binomial(1, 0.5, (dim, M)) - 1
+    else:
+        raise NotImplementedError
+
+
+def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
+    # ensure the sampled vector is isotropic
+    assert M > 0
+    if noise_type == "Sphere":
+        v = np.random.randn(batch_size, dim, M).astype(np.float32)
+        v /= np.linalg.norm(v, axis=-11, keepdims=True)
+        return v
+    elif noise_type == "Gaussian" or noise_type == "Normal":
+        return np.random.normal(0, 1, (batch_size, dim, M))
+    elif noise_type == "PMCoord":
+        B = np.zeros((M * 2, M))
+        B[np.arange(M), np.arange(M)] = 1
+        B[np.arange(M) + M, np.arange(M)] = -1
+        B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        return B
+    elif noise_type == "Sparse":
+        index = np.array([list(c) for c in it.combinations(list(range(M)), sparsity)])
+        elements = list(it.product([1, -1], repeat=sparsity))
+        n = len(index)
+        B = []
+        for e in elements:
+            e = np.expand_dims(np.array(e), 0).repeat(n, 0)
+            b = np.zeros((n, M))
+            b[np.expand_dims(np.arange(n), axis=1), index] = e
+            B.append(b)
+        B = np.concatenate(B, 0)
+        B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        return B
+    elif noise_type == "SparseConsistent":
+        index = np.array([list(c) for c in it.combinations(list(range(M)), sparsity)])
+        n = len(index)
+        B = []
+        for element in [1, -1]:
+            e = np.ones((n, sparsity)) * element
+            b = np.zeros((n, M))
+            b[np.expand_dims(np.arange(n), axis=1), index] = e
+            B.append(b)
+        B = np.concatenate(B, 0)
+        B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        return B
+    elif noise_type == "UnifCube":
+        B = np.array(list((it.product(range(2), repeat=M))))
+        B = B * 2 - 1
+        B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        return B
+    else:
+        raise NotImplementedError
 
 
 def multi_haar_matrix(N, M):
@@ -316,6 +401,13 @@ def build_bernoulli_finite_set(L, K):
     q[:, :, 0] = np.random.uniform(size=L * K).reshape((L, K))
     q[:, :, 1] = 1 - q[:, :, 0]
     return p, q, r
+
+
+def random_sign(N=None):
+    if (N is None) or (N == 1):
+        return np.random.randint(0, 2, 1) * 2 - 1
+    elif N > 1:
+        return np.random.randint(0, 2, N) * 2 - 1
 
 
 def set_seed(seed, use_torch=False):

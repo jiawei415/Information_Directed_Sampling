@@ -8,6 +8,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from utils import sample_action_noise, sample_update_noise
 from network.epinet import EpiNet
 from network.hypernet import HyperNet
 from network.ensemble import EnsembleNet
@@ -268,6 +269,14 @@ class HyperSolution:
             noise = self.gen_one_hot_noise(noise_num)
         elif noise_type == "pn":
             noise = self.gen_pn_one_noise(noise_num)
+        elif noise_type == "sps":
+            noise = sample_action_noise("Sparse", M=self.noise_dim, dim=noise_num[0])
+            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
+        elif noise_type == "spc":
+            noise = sample_action_noise(
+                "SparseConsistent", M=self.noise_dim, dim=noise_num[0]
+            )
+            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
         return noise
 
     def generate_update_noise(self, noise_num, noise_type):
@@ -287,6 +296,18 @@ class HyperSolution:
             noise = noise * 2 - 1
             noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
             noise = noise.unsqueeze(0).repeat(batch_size, 1, 1)
+        elif noise_type == "sps":
+            batch_size = noise_num[0]
+            noise = sample_update_noise(
+                "Sparse", M=self.noise_dim, batch_size=batch_size
+            )
+            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
+        elif noise_type == "spc":
+            batch_size = noise_num[0]
+            noise = sample_update_noise(
+                "SparseConsistent", M=self.noise_dim, batch_size=batch_size
+            )
+            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
         return noise
 
     def gen_gs_noise(self, noise_num):
