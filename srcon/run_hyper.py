@@ -1,4 +1,6 @@
-import os
+import os, sys
+
+sys.path.append(os.getcwd())
 import time
 import argparse
 import pandas as pd
@@ -6,8 +8,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as st
 
-from hypersolution import HyperSolution, set_seed
+from hypersolution import HyperSolution
+from utils import set_seed
 from logger import configure, dump_params
+
+MODELS = {"Hyper": "hyper", "Ensemble": "ensemble", "EpiNet": "epinet"}
 
 
 def get_args():
@@ -22,31 +27,51 @@ def get_args():
         help="[korea, chengdu, hanjiang, nandong] for scron, [Branin, Schwefel, Ackley, Hartmann] for blackbox",
     )
     parser.add_argument("--seed", type=int, default=2023)
-    parser.add_argument("--n-exp", type=int, default=3)
-    parser.add_argument("--debug", type=int, default=0, choices=[0, 1])
     parser.add_argument("--time-period", type=int, default=int(1e3))
-    parser.add_argument("--d-index", type=int, default=16)
+    parser.add_argument("--debug", type=int, default=0, choices=[0, 1])
+    # algorithm config
+    parser.add_argument("--d-index", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--weight-decay", type=float, default=0)
+    parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
+    parser.add_argument("--z-coef", type=float, default=0.01)
+    parser.add_argument("--NpS", type=int, default=16)
+    parser.add_argument("--action-noise", type=str, default="sps")
+    parser.add_argument("--update-noise", type=str, default="sps")
+    parser.add_argument("--buffer-noise", type=str, default="sp")
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--xi-coef", type=float, default=0.01)
-    parser.add_argument("--norm-coef", type=float, default=0.01)
-    parser.add_argument("--hidden-sizes", type=int, nargs="+", default=[256])
+    parser.add_argument("--update-freq", type=int, default=1)
+    parser.add_argument("--update-num", type=int, default=2)
+    parser.add_argument("--learning-start", type=int, default=128)
+    # network config
+    parser.add_argument("--method", type=str, default="Hyper")
+    parser.add_argument("--hidden-size", type=int, default=64)
+    parser.add_argument("--hidden-layer", type=int, default=2)
     parser.add_argument("--prior-scale", type=float, default=10)
     parser.add_argument("--posterior-scale", type=float, default=1)
-    parser.add_argument("--update-freq", type=int, default=1)
-    parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--learning-start", type=int, default=100)
+    # action config
     parser.add_argument("--action-num", type=int, default=10)
     parser.add_argument("--action-single-noise", type=int, default=1, choices=[0, 1])
     parser.add_argument("--action-lr", type=float, default=0.001)
     parser.add_argument("--action-max-update", type=int, default=100)
+    # other config
+    parser.add_argument("--n-exp", type=int, default=3)
     parser.add_argument("--log-freq", type=int, default=10)
     parser.add_argument("--log-dir", type=str, default="./results/srcon")
     args = parser.parse_known_args()[0]
+    args.model_type = MODELS[args.method]
+    args.hidden_sizes = [args.hidden_size] * args.hidden_layer
+    if args.method == "Ensemble":
+        args.action_noise = "oh"
+        args.update_noise = "oh"
+        args.buffer_noise = "gs"
+    elif args.method == "EpiNet":
+        args.action_noise = "gs"
+        args.update_noise = "gs"
     return args
 
 
-def plotLoss(title, path, log=False):
+def plotLoss(title, path, label, log=False):
     x_data, y_data = [], []
     for file in os.listdir(path):
         if "progress" in file:
@@ -58,7 +83,7 @@ def plotLoss(title, path, log=False):
     x = x_data[0]
     y = y_data.mean(0)
     plt.figure(figsize=(10, 8), dpi=80)
-    plt.plot(x, y, label="hypermodel")
+    plt.plot(x, y, label=label)
     if y_data.shape[0] > 1:
         low_CI_bound, high_CI_bound = st.t.interval(
             0.95, len(y_data[0]) - 1, loc=y, scale=st.sem(y_data)
@@ -74,7 +99,7 @@ def plotLoss(title, path, log=False):
     plt.savefig(path + "/loss.pdf")
 
 
-def plotResult(title, path, log=False):
+def plotResult(title, path, label, log=False):
     x_data, y_data = [], []
     for file in os.listdir(path):
         if "progress" in file:
@@ -86,7 +111,7 @@ def plotResult(title, path, log=False):
     x = x_data[0]
     y = y_data.mean(0)
     plt.figure(figsize=(10, 8), dpi=80)
-    plt.plot(x, y, label="hypermodel")
+    plt.plot(x, y, label=label)
     if y_data.shape[0] > 1:
         low_CI_bound, high_CI_bound = st.t.interval(
             0.95, len(y_data[0]) - 1, loc=y, scale=st.sem(y_data)
@@ -140,7 +165,7 @@ def run(args, model, objective, logger, run_id):
         x = objective.bound_point(x)
         y_true = objective.call(x)
         y_pred = model.predict(x)
-        y_pred = y_pred[0][0]
+        y_pred = y_pred[0]
         reward_list.append(y_true)
         error_list.append(abs(y_true - y_pred))
         if (maximize and y_true > best_reward) or (
@@ -179,7 +204,7 @@ def main(args):
     )
     for i in range(args.n_exp):
         seed = args.seed + i
-        set_seed(seed)
+        set_seed(seed, use_torch=True)
 
         # create logger
         path = os.path.expanduser(os.path.join(args.log_dir, args.dataset, log_file))
@@ -209,12 +234,18 @@ def main(args):
             posterior_scale=args.posterior_scale,
             batch_size=args.batch_size,
             lr=args.lr,
-            norm_coef=args.norm_coef,
-            target_noise_coef=args.xi_coef,
+            optim=args.optim,
+            weight_decay=args.weight_decay,
+            noise_coef=args.z_coef,
             buffer_size=args.time_period,
+            buffer_noise=args.buffer_noise,
+            NpS=args.NpS,
+            action_noise=args.action_noise,
+            update_noise=args.update_noise,
             action_num=args.action_num,
             action_lr=args.action_lr,
             action_max_update=args.action_max_update,
+            model_type=args.model_type,
         )
         logger.info(f"Network structure:\n{str(model.model)}")
 
@@ -225,9 +256,9 @@ def main(args):
 
     title = "SRCON" if args.env == "srcon" else f"BlackBox: {args.dataset}"
     if args.debug:
-        plotLoss(title=title, path=logger.get_dir(), log=False)
+        plotLoss(title=title, path=logger.get_dir(), label=args.method, log=False)
     else:
-        plotResult(title=title, path=logger.get_dir(), log=False)
+        plotResult(title=title, path=logger.get_dir(), label=args.method, log=False)
 
 
 if __name__ == "__main__":
