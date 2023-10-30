@@ -95,7 +95,9 @@ class EpiLinear(nn.Module):
         batch_size = x.shape[0]
         epinet_inp = torch.cat([x, feature], dim=-1)
         if len(z.shape) == 2:
-            z = z.unsqueeze(1).repeat(batch_size, 1, 1)
+            z = z.unsqueeze(1)
+            if z.shape[0] == 1:
+                z = z.repeat(batch_size, 1, 1)
         epinet_inp = epinet_inp.unsqueeze(1).repeat(1, z.shape[1], 1)
         epinet_inp = torch.cat([epinet_inp, z], dim=-1)
         out = self.epinet(epinet_inp)
@@ -145,6 +147,6 @@ class EpiNet(nn.Module):
             logits = logits.detach()
         epi_out = self.epi_out(x, logits, z)
         out = epi_out + based_out
-        if z.shape[0] != x.shape[0]:
+        if len(out.shape) == 2 and out.shape[-1] == 1:
             out = out.squeeze(-1)
         return out

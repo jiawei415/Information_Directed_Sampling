@@ -243,6 +243,10 @@ class SyntheticNonlinModel:
             dtype=np.float32,
         )
 
+        if hasattr(self, "reward_model"):
+            self.reward_model.to("cpu")
+            torch.cuda.empty_cache()
+
         self.sub_actions = n_actions
         self.all_actions = all_actions
         self.eta = eta

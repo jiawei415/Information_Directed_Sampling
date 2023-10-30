@@ -179,6 +179,9 @@ class HyperLinear(nn.Module):
             # compute action value for one action set
             out = torch.mm(theta, x.T).squeeze(0)
             prior_out = torch.mm(prior_theta, prior_x.T).squeeze(0)
+        elif x.shape == theta.shape:
+            out = torch.sum(x * theta, -1)
+            prior_out = torch.sum(prior_x * prior_theta, -1)
         else:
             # compute predict reward in batch
             out = torch.bmm(theta, x.unsqueeze(-1)).squeeze(-1)
