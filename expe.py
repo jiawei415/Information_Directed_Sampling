@@ -14,12 +14,12 @@ from env.finitecontext import (
     FiniteContextFGTSLinModel,
     FiniteContextPaperLinModel,
     FiniteContextFreqPaperLinModel,
-    SyntheticNonlinModel,
 )
 from env.infinitecontext import (
     InfiniteContextPaperLinModel,
     InfiniteContextFreqPaperLinModel,
 )
+from env.synthetic import SyntheticNonlinModel
 from env.data_multi import Bandit_multi
 from utils import (
     plotRegret,
@@ -370,6 +370,7 @@ def InfiniteContextHyperMAB_expe(
     path,
     problem="FreqRusso",
     doplot=True,
+    freq_task=True,
 ):
     """
     Compute regrets for a given set of algorithms (methods) over t=1,...,T and for n_expe number of independent
@@ -407,6 +408,21 @@ def InfiniteContextHyperMAB_expe(
         title = "Linear Gaussian Model (Bayes MOD, Russo and Van Roy, 2018) - n_arms: {} - n_features: {}".format(
             n_arms, n_features
         )
+    elif problem.startswith("Synthetic"):
+        rew_v = problem.split("-")[-1]
+        models = [
+            HyperMAB(
+                SyntheticNonlinModel(
+                    n_features,
+                    n_arms,
+                    reward_version=rew_v,
+                    freq_task=freq_task,
+                    resample_feature=True,
+                )
+            )
+            for _ in range(n_expe)
+        ]
+        title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: {rew_v}"
     else:
         raise NotImplementedError
 

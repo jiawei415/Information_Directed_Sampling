@@ -108,6 +108,8 @@ game_config = {
     "Synthetic-v4": base_config,
     "RealData-v1": {**base_config},
     "RealData-v2": {**base_config},
+    "RealData-v3": {**base_config},
+    "RealData-v4": {**base_config},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:
