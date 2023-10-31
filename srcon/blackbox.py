@@ -142,3 +142,19 @@ class BlackBox:
 
     def call(self, x):
         return self.function(x)
+
+
+if __name__ == "__main__":
+    input_dim = 10
+    blackbox = BlackBox("Schwefel", 3)
+    x = np.array([[4.209687] * 3])
+    print(blackbox.call(x))
+    blackbox = BlackBox("Branin", 2)
+    x = np.array([[9.42478, 2.475]])
+    print(blackbox.call(x))
+    blackbox = BlackBox("Ackley", 20)
+    x = np.array([[0] * 20])
+    print(blackbox.call(x))
+    blackbox = BlackBox("Hartmann", 6)
+    x = np.array([[0.20169, 0.150011, 0.476874, 0.275332, 0.311652, 0.6573]])
+    print(blackbox.call(x))

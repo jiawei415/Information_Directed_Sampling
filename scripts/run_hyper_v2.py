@@ -46,7 +46,7 @@ def get_args():
     parser.add_argument("--update-num", type=int, default=2)
     # other config
     parser.add_argument("--n-expe", type=int, default=3)
-    parser.add_argument("--logdir", type=str, default="./results/bandit")
+    parser.add_argument("--log-dir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
     return args
 
@@ -54,7 +54,7 @@ def get_args():
 args = get_args()
 game = args.game
 dir = f"{game.lower()}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
-path = os.path.expanduser(os.path.join(args.logdir, game, dir))
+path = os.path.expanduser(os.path.join(args.log_dir, game, dir))
 os.makedirs(path, exist_ok=True)
 
 args.hidden_sizes = [args.hidden_size] * args.hidden_layer

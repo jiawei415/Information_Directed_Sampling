@@ -55,7 +55,7 @@ def get_args():
     parser.add_argument("--action-lr", type=float, default=0.001)
     parser.add_argument("--action-max-update", type=int, default=100)
     # other config
-    parser.add_argument("--n-exp", type=int, default=3)
+    parser.add_argument("--n-expe", type=int, default=3)
     parser.add_argument("--log-freq", type=int, default=10)
     parser.add_argument("--log-dir", type=str, default="./results/srcon")
     args = parser.parse_known_args()[0]
@@ -202,7 +202,7 @@ def main(args):
     log_file = (
         f"{args.dataset}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
     )
-    for i in range(args.n_exp):
+    for i in range(args.n_expe):
         seed = args.seed + i
         set_seed(seed, use_torch=True)
 
