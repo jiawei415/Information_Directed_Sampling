@@ -15,11 +15,14 @@ from network.ensemble import EnsembleNet
 
 
 class ReplayBuffer:
-    def __init__(self, buffer_size, buffer_shape, noise_type="sp"):
+    def __init__(
+        self, buffer_size, buffer_shape, noise_type="sp", save_full_feature=False
+    ):
         self.buffers = {
             key: np.empty([buffer_size, *shape]) for key, shape in buffer_shape.items()
         }
         self.noise_dim = buffer_shape["z"][-1]
+        self.save_full_feature = save_full_feature
         self.sample_num = 0
         if noise_type == "sp":
             self._gen_noise = self._gen_sphere_noise
@@ -41,25 +44,27 @@ class ReplayBuffer:
         return noise
 
     def _sample(self, index):
-        a_data = self.buffers["a"][: self.sample_num]
-        s_data = self.buffers["s"][: self.sample_num]
-        f_data = s_data[np.arange(self.sample_num), a_data.astype(np.int32)]
-        r_data = self.buffers["r"][: self.sample_num]
-        z_data = self.buffers["z"][: self.sample_num]
-        s_data, f_data, r_data, z_data = (
-            s_data[index],
-            f_data[index],
-            r_data[index],
-            z_data[index],
-        )
+        if self.save_full_feature:
+            a_data = self.buffers["a"][: self.sample_num]
+            f_data = s_data[np.arange(self.sample_num), a_data.astype(np.int32)][index]
+            s_data = self.buffers["s"][: self.sample_num][index]
+        else:
+            f_data = self.buffers["f"][: self.sample_num][index]
+            s_data = None
+        r_data = self.buffers["r"][: self.sample_num][index]
+        z_data = self.buffers["z"][: self.sample_num][index]
         return s_data, f_data, r_data, z_data
 
     def reset(self):
         self.sample_num = 0
 
     def put(self, transition):
-        for k, v in transition.items():
-            self.buffers[k][self.sample_num] = v
+        if self.save_full_feature:
+            for k, v in transition.items():
+                self.buffers[k][self.sample_num] = v
+        else:
+            self.buffers["r"][self.sample_num] = transition["r"]
+            self.buffers["f"][self.sample_num] = transition["s"][transition["a"]]
         z = self._gen_noise()
         self.buffers["z"][self.sample_num] = z
         self.sample_num += 1
@@ -166,12 +171,13 @@ class HyperSolution:
 
     def __init_buffer(self):
         # init replay buffer
-        buffer_shape = {
-            "s": (self.action_dim, self.feature_dim),
-            "a": (),
-            "r": (),
-            "z": (self.noise_dim,),
-        }
+        # buffer_shape = {
+        #     "s": (self.action_dim, self.feature_dim),
+        #     "a": (),
+        #     "r": (),
+        #     "z": (self.noise_dim,),
+        # }
+        buffer_shape = {"f": (self.feature_dim,), "r": (), "z": (self.noise_dim,)}
         self.buffer = ReplayBuffer(self.buffer_size, buffer_shape, self.buffer_noise)
 
     def _update(self):
@@ -215,7 +221,8 @@ class HyperSolution:
         z_batch = torch.FloatTensor(z_batch).to(self.device)
         f_batch = torch.FloatTensor(f_batch).to(self.device)
         r_batch = torch.FloatTensor(r_batch).to(self.device)
-        s_batch = torch.FloatTensor(s_batch).to(self.device)
+        if s_batch is not None:
+            s_batch = torch.FloatTensor(s_batch).to(self.device)
 
         update_noise = self.generate_update_noise(
             (self.batch_size, self.NpS), self.update_noise
