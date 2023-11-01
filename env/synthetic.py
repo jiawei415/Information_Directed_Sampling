@@ -7,7 +7,8 @@ import torch.nn.functional as F
 def _random_argmax(vals: np.ndarray, scale: float = 1e-7):
     """Select max with additional random noise."""
     noise = np.random.uniform(vals.shape)
-    return np.max(vals + scale * noise, axis=-1)
+    index = np.argmax(vals + scale * noise, axis=-1)
+    return vals[np.arange(vals.shape[0]), index]
 
 
 class MLP(nn.Module):
@@ -54,7 +55,7 @@ class SyntheticNonlinModel:
         self,
         n_features=50,
         n_actions=20,
-        all_actions=100,
+        all_actions=1000,
         eta=0.1,
         sigma=1,
         reward_version="v1",
@@ -120,10 +121,13 @@ class SyntheticNonlinModel:
         if self.resample_feature:
             self.set_feature()
             self.set_reward()
-        action_set = np.arange(self.all_actions, dtype=np.int32)
-        sub_action_set = self.prior_random.choice(
-            action_set, size=self.sub_actions, replace=False
-        )
+        if self.sub_actions == self.all_actions:
+            sub_action_set = np.arange(self.sub_actions)
+        else:
+            action_set = np.arange(self.all_actions, dtype=np.int32)
+            sub_action_set = self.prior_random.choice(
+                action_set, size=self.sub_actions, replace=False
+            )
         self.features = self.all_features[sub_action_set]
         self.sub_rewards = self.all_rewards[sub_action_set]
 
@@ -166,7 +170,6 @@ class SyntheticNonlinModel:
         """
         Compute the regret of a single step
         """
-        rewards = self.reward_fn(features)
-        expect_reward = rewards[arm]
-        best_arm_reward = rewards.max()
+        expect_reward = self.sub_rewards[arm]
+        best_arm_reward = self.sub_rewards.max()
         return best_arm_reward - expect_reward
