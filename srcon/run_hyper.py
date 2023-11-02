@@ -30,6 +30,7 @@ def get_args():
     parser.add_argument("--time-period", type=int, default=int(1e3))
     parser.add_argument("--debug", type=int, default=0, choices=[0, 1])
     # algorithm config
+    parser.add_argument("--d-theta", type=int, default=10)
     parser.add_argument("--d-index", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight-decay", type=float, default=0)
@@ -47,17 +48,18 @@ def get_args():
     parser.add_argument("--method", type=str, default="Hyper")
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
-    parser.add_argument("--prior-scale", type=float, default=10)
+    parser.add_argument("--prior-scale", type=float, default=1)
     parser.add_argument("--posterior-scale", type=float, default=1)
     # action config
     parser.add_argument("--action-num", type=int, default=10)
     parser.add_argument("--action-single-noise", type=int, default=1, choices=[0, 1])
     parser.add_argument("--action-lr", type=float, default=0.001)
-    parser.add_argument("--action-max-update", type=int, default=100)
+    parser.add_argument("--action-max-update", type=int, default=10)
     # other config
     parser.add_argument("--n-expe", type=int, default=3)
     parser.add_argument("--log-freq", type=int, default=10)
     parser.add_argument("--log-dir", type=str, default="./results/srcon")
+    parser.add_argument("--save-model", type=int, default=0, choices=[0, 1])
     args = parser.parse_known_args()[0]
     args.model_type = MODELS[args.method]
     args.hidden_sizes = [args.hidden_size] * args.hidden_layer
@@ -163,9 +165,8 @@ def run(args, model, objective, logger, run_id):
         else:
             x = objective.sample_action(1)
         x = objective.bound_point(x)
-        y_true = objective.call(x)
-        y_pred = model.predict(x)
-        y_pred = y_pred[0]
+        y_true = objective.call(x)[0]
+        y_pred = model.predict(x)[0]
         reward_list.append(y_true)
         error_list.append(abs(y_true - y_pred))
         if (maximize and y_true > best_reward) or (
@@ -174,8 +175,9 @@ def run(args, model, objective, logger, run_id):
             best_reward = y_true
             best_action = x
             logger.info(f"Step {t}, Best Reward {best_reward}.")
-            np.save(os.path.join(logger.get_dir(), f"best_action{run_id}"), best_action)
-            model.save_model(os.path.join(logger.get_dir(), f"best_model{run_id}.pkl"))
+            if args.save_model:
+                np.save(os.path.join(logger.get_dir(), f"best_action{run_id}"), best_action)
+                model.save_model(os.path.join(logger.get_dir(), f"best_model{run_id}.pkl"))
         data = {"x": x, "y": y_true}
         model.put(data)
         # update model
@@ -222,7 +224,7 @@ def main(args):
         elif args.env == "blackbox":
             from blackbox import BlackBox, D_THETA
 
-            args.d_theta = D_THETA[args.dataset]
+            args.d_theta = D_THETA.get(args.dataset, args.d_theta)
             objective = BlackBox(args.dataset, args.d_theta)
 
         # create hypermodel
