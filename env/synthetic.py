@@ -55,7 +55,7 @@ class SyntheticNonlinModel:
         self,
         n_features=50,
         n_actions=20,
-        all_actions=1000,
+        all_actions=None,
         eta=0.1,
         sigma=1,
         reward_version="v1",
@@ -70,7 +70,7 @@ class SyntheticNonlinModel:
         self.n_actions = n_actions
         self.n_features = n_features
         self.sub_actions = n_actions
-        self.all_actions = all_actions
+        self.all_actions = all_actions or n_actions
 
         # feture
         self.set_feature()
