@@ -17,7 +17,7 @@ FUNC_NAMES = [
     "Ackley",
     "Michalewicz",
     "Levy",
-    "Levy",
+    "Rosenbrock",
 ]
 
 

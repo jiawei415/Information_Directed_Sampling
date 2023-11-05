@@ -170,7 +170,7 @@ def sample_action_noise(noise_type, M, dim=1, sparsity=2):
     if noise_type == "Sphere":
         return sphere_matrix(dim, M)
     elif noise_type == "Gaussian" or noise_type == "Normal":
-        return np.random.normal(0, 1, (dim, M))
+        return np.random.normal(0, 1, (dim, M)).astype(np.float32)
     elif noise_type == "PMCoord":
         i = np.random.choice(M, dim)
         B = np.zeros((dim, M))
@@ -202,7 +202,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         v /= np.linalg.norm(v, axis=-11, keepdims=True)
         return v
     elif noise_type == "Gaussian" or noise_type == "Normal":
-        return np.random.normal(0, 1, (batch_size, dim, M))
+        return np.random.normal(0, 1, (batch_size, dim, M)).astype(np.float32)
     elif noise_type == "PMCoord":
         B = np.zeros((M * 2, M))
         B[np.arange(M), np.arange(M)] = 1

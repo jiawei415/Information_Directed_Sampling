@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 def _random_argmax(vals: np.ndarray, scale: float = 1e-7):
     """Select max with additional random noise."""
-    noise = np.random.uniform(vals.shape)
+    noise = np.random.uniform(vals.shape).astype(np.float32)
     index = np.argmax(vals + scale * noise, axis=-1)
     return vals[np.arange(vals.shape[0]), index]
 
@@ -78,11 +78,15 @@ class SyntheticNonlinModel:
         # reward
         if reward_version == "v1":
             self.reward_fn = getattr(self, "reward_fn1")
-            theta = self.prior_random.normal(0, sigma, size=(n_features, n_features))
+            theta = self.prior_random.normal(
+                0, sigma, size=(n_features, n_features)
+            ).astype(np.float32)
             self.real_theta = theta @ theta.T
         elif reward_version == "v2":
             self.reward_fn = getattr(self, "reward_fn2")
-            theta = self.prior_random.normal(0, sigma, size=n_features)
+            theta = self.prior_random.normal(0, sigma, size=n_features).astype(
+                np.float32
+            )
             self.real_theta = theta / np.linalg.norm(theta)
         elif reward_version == "v3":
             self.set_reward_model(n_features, 2, prior_random_state)
@@ -158,7 +162,7 @@ class SyntheticNonlinModel:
 
     def reward(self, arm):
         reward = self.sub_rewards[arm]
-        noise = self.reward_random.normal(0, self.eta, 1)
+        noise = self.reward_random.normal(0, self.eta, 1).astype(np.float32)
         return reward + noise
 
     def regret(self, arm):
