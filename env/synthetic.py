@@ -4,10 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def _random_argmax(vals: np.ndarray, scale: float = 1e-7):
+def _random_argmax(vals, scale=1e-7):
     """Select max with additional random noise."""
-    noise = np.random.uniform(vals.shape).astype(np.float32)
-    index = np.argmax(vals + scale * noise, axis=-1)
+    noise = torch.distributions.Uniform(0, 1).sample(vals.shape).to(vals.device)
+    index = torch.max(vals + scale * noise, dim=-1)[1]
     return vals[np.arange(vals.shape[0]), index]
 
 
@@ -41,13 +41,13 @@ class MLP(nn.Module):
                 nn.init.xavier_normal_(param)
 
     def forward(self, x):
-        x = torch.from_numpy(x.astype(np.float32)).to(self.device)
+        x = torch.from_numpy(x).to(self.device)
         logits = self.model(x)
         if self.output_dim == 1:
             return logits.detach().cpu().numpy()
         probs = F.softmax(logits / self.temperature, -1)
-        out = _random_argmax(probs.detach().cpu().numpy())
-        return out
+        out = _random_argmax(probs)
+        return out.detach().cpu().numpy()
 
 
 class SyntheticNonlinModel:
@@ -64,8 +64,8 @@ class SyntheticNonlinModel:
     ):
         prior_random_state = 2022 if freq_task else np.random.randint(1, 312414)
         reward_random_state = np.random.randint(1, 312414)
-        self.prior_random = np.random.RandomState(prior_random_state)
-        self.reward_random = np.random.RandomState(reward_random_state)
+        self.prior_random = np.random.default_rng(prior_random_state)
+        self.reward_random = np.random.default_rng(reward_random_state)
 
         self.n_actions = n_actions
         self.n_features = n_features
@@ -78,14 +78,14 @@ class SyntheticNonlinModel:
         # reward
         if reward_version == "v1":
             self.reward_fn = getattr(self, "reward_fn1")
-            theta = self.prior_random.normal(
-                0, sigma, size=(n_features, n_features)
-            ).astype(np.float32)
+            theta = sigma * self.prior_random.standard_normal(
+                size=(n_features, n_features), dtype=np.float32
+            )
             self.real_theta = theta @ theta.T
         elif reward_version == "v2":
             self.reward_fn = getattr(self, "reward_fn2")
-            theta = self.prior_random.normal(0, sigma, size=n_features).astype(
-                np.float32
+            theta = sigma * self.prior_random.standard_normal(
+                size=n_features, dtype=np.float32
             )
             self.real_theta = theta / np.linalg.norm(theta)
         elif reward_version == "v3":
@@ -112,14 +112,14 @@ class SyntheticNonlinModel:
     #     return self.features.shape[0]
 
     def set_feature(self):
-        x = self.prior_random.randn(self.all_actions, self.n_features).astype(
-            np.float32
+        x = self.prior_random.standard_normal(
+            size=(self.all_actions, self.n_features), dtype=np.float32
         )
         x /= np.linalg.norm(x, axis=1, keepdims=True)
         self.all_features = x
 
     def set_reward(self):
-        self.all_rewards = self.reward_fn(self.all_features).astype(np.float32)
+        self.all_rewards = self.reward_fn(self.all_features)
 
     def set_context(self):
         if self.resample_feature:
@@ -162,7 +162,7 @@ class SyntheticNonlinModel:
 
     def reward(self, arm):
         reward = self.sub_rewards[arm]
-        noise = self.reward_random.normal(0, self.eta, 1).astype(np.float32)
+        noise = self.reward_random.standard_normal(size=1, dtype=np.float32) * self.eta
         return reward + noise
 
     def regret(self, arm):
