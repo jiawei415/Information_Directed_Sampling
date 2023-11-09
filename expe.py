@@ -279,6 +279,7 @@ def FiniteContextHyperMAB_expe(
     problem="FreqRusso",
     doplot=True,
     freq_task=True,
+    **kwargs,
 ):
     """
     Compute regrets for a given set of algorithms (methods) over t=1,...,T and for n_expe number of independent
@@ -338,7 +339,11 @@ def FiniteContextHyperMAB_expe(
         models = [
             HyperMAB(
                 SyntheticNonlinModel(
-                    n_features, n_arms, reward_version=rew_v, freq_task=freq_task
+                    n_features,
+                    n_arms,
+                    all_actions=kwargs["all_arms"],
+                    reward_version=rew_v,
+                    freq_task=freq_task,
                 )
             )
             for _ in range(n_expe)
@@ -371,6 +376,7 @@ def InfiniteContextHyperMAB_expe(
     problem="FreqRusso",
     doplot=True,
     freq_task=True,
+    **kwargs,
 ):
     """
     Compute regrets for a given set of algorithms (methods) over t=1,...,T and for n_expe number of independent
@@ -415,6 +421,7 @@ def InfiniteContextHyperMAB_expe(
                 SyntheticNonlinModel(
                     n_features,
                     n_arms,
+                    all_actions=kwargs["all_arms"],
                     reward_version=rew_v,
                     freq_task=freq_task,
                     resample_feature=True,

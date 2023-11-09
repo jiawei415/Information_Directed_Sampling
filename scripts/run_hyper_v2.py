@@ -24,9 +24,10 @@ def get_args():
     # environment config
     parser.add_argument("--game", type=str, default="Synthetic-v3")
     parser.add_argument("--time-period", type=int, default=1000)
+    parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--n-features", type=int, default=50)
     parser.add_argument("--n-arms", type=int, default=20)
-    parser.add_argument("--n-context", type=int, default=1)
+    parser.add_argument("--all-arms", type=int, default=None)
     parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper")
@@ -36,9 +37,9 @@ def get_args():
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--z-coef", type=float, default=None)
     parser.add_argument("--NpS", type=int, default=16)
-    parser.add_argument("--action-noise", type=str, default="sps")
-    parser.add_argument("--update-noise", type=str, default="sps")
-    parser.add_argument("--buffer-noise", type=str, default="sp")
+    parser.add_argument("--action-noise", type=str, default="pn")
+    parser.add_argument("--update-noise", type=str, default="pn")
+    parser.add_argument("--buffer-noise", type=str, default="spc")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
@@ -102,10 +103,10 @@ base_config = {
     "freq_task": args.freq_task,
 }
 game_config = {
-    "Synthetic-v1": base_config,
-    "Synthetic-v2": base_config,
-    "Synthetic-v3": base_config,
-    "Synthetic-v4": base_config,
+    "Synthetic-v1": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v2": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v3": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v4": {**base_config, "all_arms": args.all_arms},
     "RealData-v1": {**base_config},
     "RealData-v2": {**base_config},
     "RealData-v3": {**base_config},
