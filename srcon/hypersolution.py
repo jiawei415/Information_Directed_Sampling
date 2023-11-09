@@ -8,10 +8,15 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from utils import sample_action_noise, sample_update_noise, rd_argmax
-from network.epinet import EpiNet
-from network.hypernet import HyperNet
-from network.ensemble import EnsembleNet
+from functools import partial
+
+from utils import (
+    rd_argmax,
+    sample_action_noise,
+    sample_update_noise,
+    sample_buffer_noise,
+)
+from network import HyperNet, EnsembleNet, EpiNet
 
 
 class ReplayBuffer:
@@ -22,24 +27,25 @@ class ReplayBuffer:
         }
         self.noise_dim = buffer_shape["z"][-1]
         self.sample_num = 0
-        if noise_type == "sp":
-            self._gen_noise = self._gen_sphere_noise
-        elif noise_type == "gs":
-            self._gen_noise = self._gen_gs_noise
-        else:
-            NotImplementedError
+        self.set_buffer_noise(noise_type)
+
+    def set_buffer_noise(self, noise_type):
+        args = {"M": self.noise_dim}
+        if noise_type == "gs":
+            self.gen_noise = partial(sample_buffer_noise, "Gaussian", **args)
+        elif noise_type == "sp":
+            self.gen_noise = partial(sample_buffer_noise, "Sphere", **args)
+        elif noise_type == "pn":
+            self.gen_noise = partial(sample_buffer_noise, "UnifCube", **args)
+        elif noise_type == "oh":
+            self.gen_noise = partial(sample_buffer_noise, "OH", **args)
+        elif noise_type == "sps":
+            self.gen_noise = partial(sample_buffer_noise, "Sparse", **args)
+        elif noise_type == "spc":
+            self.gen_noise = partial(sample_buffer_noise, "SparseConsistent", **args)
 
     def __len__(self):
         return self.sample_num
-
-    def _gen_sphere_noise(self):
-        noise = np.random.randn(self.noise_dim).astype(np.float32)
-        noise /= np.linalg.norm(noise)
-        return noise
-
-    def _gen_gs_noise(self):
-        noise = np.random.randn(self.noise_dim).astype(np.float32)
-        return noise
 
     def _sample(self, index):
         x_data = self.buffers["x"][: self.sample_num]
@@ -54,7 +60,7 @@ class ReplayBuffer:
     def put(self, transition):
         for k, v in transition.items():
             self.buffers[k][self.sample_num] = v
-        z = self._gen_noise()
+        z = self.gen_noise()
         self.buffers["z"][self.sample_num] = z
         self.sample_num += 1
 
@@ -119,6 +125,8 @@ class HyperSolution:
 
         self.__init_model_optimizer()
         self.__init_buffer()
+        self.set_update_noise()
+        self.set_action_noise()
 
     def __init_model_optimizer(self):
         # init hypermodel
@@ -174,14 +182,13 @@ class HyperSolution:
         x_batch = torch.FloatTensor(x_batch).to(self.device)
         z_batch = torch.FloatTensor(z_batch).to(self.device)
 
-        update_noise = self.generate_update_noise(
-            (self.batch_size, self.NpS), self.update_noise
-        )  # noise for update
-        target_noise = (
-            torch.mul(z_batch.unsqueeze(1), update_noise).sum(-1) * self.noise_coef
-        )  # noise for target
+        # noise for update
+        update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
+        # noise for target
+        target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
+
         predict = self.model(update_noise, x_batch)
-        diff = target_noise + y_batch.unsqueeze(-1) - predict
+        diff = target_noise.squeeze(-1) + y_batch.unsqueeze(-1) - predict
         diff = diff.pow(2).mean(-1)
         loss = diff.mean()
 
@@ -190,15 +197,15 @@ class HyperSolution:
         self.optimizer.step()
         return {"loss": loss.item()}
 
-    def get_thetas(self, M=1):
+    def get_thetas(self, num=1):
         assert len(self.hidden_sizes) == 0, f"hidden size > 0"
-        action_noise = self.generate_action_noise((M,), self.action_noise)
+        action_noise = self.gen_action_noise(dim=num)
         with torch.no_grad():
             thetas = self.model.out.get_thetas(action_noise).cpu().numpy()
         return thetas
 
-    def predict(self, features, M=1):
-        action_noise = self.generate_action_noise((M,), self.action_noise)
+    def predict(self, features, num=1):
+        action_noise = self.gen_action_noise(dim=num)
         with torch.no_grad():
             out = self.model(action_noise, features).cpu().numpy()
         return out
@@ -208,15 +215,14 @@ class HyperSolution:
 
     def select_action(self, actions, bound_func, single_noise=True, maximize=True):
         # init actions
-        # actions = np.random.rand(self.action_num, self.input_dim).astype(np.float32)
         actions = torch.from_numpy(actions).to(self.device)
         actions.requires_grad = True
         # sample noise
         if single_noise:
-            noise = self.generate_action_noise((1,), self.action_noise)
-            noise = noise.repeat(actions.shape[0], 1)
+            noise = self.gen_action_noise(dim=1)
+            noise = noise.repeat(actions.shape[0], 0)
         else:
-            noise = self.generate_action_noise((actions.shape[0],), self.action_noise)
+            noise = self.gen_action_noise(dim=actions.shape[0])
         model = copy.deepcopy(self.model)
         model.requires_grad = False
         optim = torch.optim.Adam([actions], lr=self.action_lr)
@@ -239,82 +245,39 @@ class HyperSolution:
         actions = actions.detach().cpu().numpy()
         return np.array([actions[act_index]])
 
-    def generate_action_noise(self, noise_num, noise_type):
-        if noise_type == "gs":
-            noise = self.gen_gs_noise(noise_num)
-        elif noise_type == "sp":
-            noise = self.gen_sp_noise(noise_num)
-        elif noise_type == "sgs":
-            noise = self.gen_sgs_noise(noise_num)
-        elif noise_type == "oh":
-            noise = self.gen_one_hot_noise(noise_num)
-        elif noise_type == "pn":
-            noise = self.gen_pn_one_noise(noise_num)
-        elif noise_type == "sps":
-            noise = sample_action_noise("Sparse", M=self.noise_dim, dim=noise_num[0])
-            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
-        elif noise_type == "spc":
-            noise = sample_action_noise(
-                "SparseConsistent", M=self.noise_dim, dim=noise_num[0]
+    def set_action_noise(self):
+        args = {"M": self.noise_dim}
+        if self.action_noise == "gs":
+            self.gen_action_noise = partial(sample_action_noise, "Gaussian", **args)
+        elif self.action_noise == "sp":
+            self.gen_action_noise = partial(sample_action_noise, "Sphere", **args)
+        elif self.action_noise == "pn":
+            self.gen_action_noise = partial(sample_action_noise, "UnifCube", **args)
+        elif self.action_noise == "oh":
+            self.gen_action_noise = partial(sample_action_noise, "OH", **args)
+        elif self.action_noise == "sps":
+            self.gen_action_noise = partial(sample_action_noise, "Sparse", **args)
+        elif self.action_noise == "spc":
+            self.gen_action_noise = partial(
+                sample_action_noise, "SparseConsistent", **args
             )
-            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
-        return noise
 
-    def generate_update_noise(self, noise_num, noise_type):
-        if noise_type == "gs":
-            noise = self.gen_gs_noise(noise_num)
-        elif noise_type == "sp":
-            noise = self.gen_sp_noise(noise_num)
-        elif noise_type == "sgs":
-            noise = self.gen_sgs_noise(noise_num)
-        elif noise_type == "oh":
-            batch_size = noise_num[0]
-            noise = torch.arange(self.noise_dim).unsqueeze(0).repeat(batch_size, 1)
-            noise = F.one_hot(noise, self.noise_dim).to(torch.float32).to(self.device)
-        elif noise_type == "pn":
-            batch_size = noise_num[0]
-            noise = np.array(list((it.product(range(2), repeat=self.noise_dim))))
-            noise = noise * 2 - 1
-            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
-            noise = noise.unsqueeze(0).repeat(batch_size, 1, 1)
-        elif noise_type == "sps":
-            batch_size = noise_num[0]
-            noise = sample_update_noise(
-                "Sparse", M=self.noise_dim, batch_size=batch_size
+    def set_update_noise(self):
+        args = {"M": self.noise_dim, "dim": self.NpS, "batch_size": self.batch_size}
+        if self.update_noise == "gs":
+            self.gen_update_noise = partial(sample_update_noise, "Gaussian", **args)
+        elif self.update_noise == "sp":
+            self.gen_update_noise = partial(sample_update_noise, "Sphere", **args)
+        elif self.update_noise == "pn":
+            self.gen_update_noise = partial(sample_update_noise, "UnifCube", **args)
+        elif self.update_noise == "oh":
+            self.gen_update_noise = partial(sample_update_noise, "OH", **args)
+        elif self.update_noise == "sps":
+            self.gen_update_noise = partial(sample_update_noise, "Sparse", **args)
+        elif self.update_noise == "spc":
+            self.gen_update_noise = partial(
+                sample_update_noise, "SparseConsistent", **args
             )
-            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
-        elif noise_type == "spc":
-            batch_size = noise_num[0]
-            noise = sample_update_noise(
-                "SparseConsistent", M=self.noise_dim, batch_size=batch_size
-            )
-            noise = torch.from_numpy(noise).to(torch.float32).to(self.device)
-        return noise
-
-    def gen_gs_noise(self, noise_num):
-        noise_shape = noise_num + (self.noise_dim,)
-        noise = torch.randn(noise_shape).type(torch.float32)
-        return noise.to(self.device)
-
-    def gen_sp_noise(self, noise_num):
-        noise = self.gen_gs_noise(noise_num)
-        noise /= torch.norm(noise, dim=-1, keepdim=True)
-        return noise
-
-    def gen_sgs_noise(self, noise_num):
-        noise = self.gen_gs_noise(noise_num)
-        noise /= np.sqrt(self.noise_dim)
-        return noise
-
-    def gen_one_hot_noise(self, noise_num: tuple):
-        noise = torch.randint(0, self.noise_dim, noise_num)
-        noise = F.one_hot(noise, self.noise_dim).to(torch.float32)
-        return noise.to(self.device)
-
-    def gen_pn_one_noise(self, noise_num: tuple):
-        noise_shape = noise_num + (self.noise_dim,)
-        noise = torch.ones(noise_shape) + torch.randint(-1, 1, noise_shape) * 2
-        return noise.to(self.device)
 
     def save_model(self, save_path):
         torch.save(self.model.state_dict(), save_path)
