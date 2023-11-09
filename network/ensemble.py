@@ -1,5 +1,6 @@
 from typing import Sequence, Union
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -70,7 +71,7 @@ class EnsembleNet(nn.Module):
         x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
         logits = self.basedmodel(x)
         if z.shape[0] == 1:
-            ensemble_index = torch.where(z == 1)[1].cpu().int()
+            ensemble_index = int(np.where(z == 1)[1])
             out = self.out[ensemble_index](logits)
             if self.prior_scale > 0:
                 prior_logits = self.priormodel(x)

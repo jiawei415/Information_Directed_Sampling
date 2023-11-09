@@ -1,12 +1,12 @@
 """ Packages import """
-import numpy as np
 import os
 import csv
-import itertools as it
-import random as rd
-import matplotlib.pyplot as plt
-import scipy.stats as st
 import inspect
+import numpy as np
+import random as rd
+import itertools as it
+import scipy.stats as st
+import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
@@ -146,7 +146,8 @@ def haar_matrix(M):
     """
     Haar random matrix generation
     """
-    z = np.random.randn(M, M).astype(np.float32)
+    z = np.empty((M, M), dtype=np.float32)
+    z[:] = np.random.randn(M, M)
     q, r = np.linalg.qr(z)
     d = np.diag(r)
     ph = d / np.abs(d)
@@ -154,8 +155,15 @@ def haar_matrix(M):
 
 
 def sphere_matrix(N, M):
-    v = np.random.randn(N, M).astype(np.float32)
+    v = np.empty((N, M), dtype=np.float32)
+    v[:] = np.random.randn(N, M)
     v /= np.linalg.norm(v, axis=1, keepdims=True)
+    return v
+
+
+def normal_matrix(N, M):
+    v = np.empty((N, M), dtype=np.float32)
+    v[:] = np.random.randn(N, M)
     return v
 
 
@@ -164,32 +172,74 @@ def random_choice_noreplace(m, n, axis=-1):
     return np.random.rand(m, n).argsort(axis=axis)
 
 
+def sample_buffer_noise(noise_type, M, sparsity=2):
+    # ensure the sampled vector is isotropic
+    assert M > 0
+    if noise_type == "Sphere":
+        return sphere_matrix(1, M)[0]
+    elif noise_type == "Gaussian" or noise_type == "Normal":
+        return normal_matrix(1, M)[0]
+    elif noise_type == "PMCoord":
+        i = np.random.choice(M)
+        B = np.zeros(M, dtype=np.float32)
+        B[i] = random_sign()
+        return B
+    elif noise_type == "OH":
+        i = np.random.randint(0, M)
+        B = np.zeros(M, dtype=np.float32)
+        B[i] = 1
+        return B
+    elif noise_type == "Sparse":
+        i = random_choice_noreplace(1, M)[0, :sparsity]
+        B = np.zeros(M, dtype=np.float32)
+        B[i] = random_sign(1 * sparsity)
+        return B / np.sqrt(sparsity)
+    elif noise_type == "SparseConsistent":
+        i = random_choice_noreplace(1, M)[0, :sparsity]
+        B = np.zeros(M, dtype=np.float32)
+        B[i] = random_sign(1)
+        return B / np.sqrt(sparsity)
+    elif noise_type == "UnifCube":
+        B = np.empty(M, dtype=np.float32)
+        B[:] = 2 * np.random.binomial(1, 0.5, M) - 1
+        return B / np.sqrt(M)
+    else:
+        raise NotImplementedError
+
+
 def sample_action_noise(noise_type, M, dim=1, sparsity=2):
     # ensure the sampled vector is isotropic
     assert M > 0
     if noise_type == "Sphere":
         return sphere_matrix(dim, M)
     elif noise_type == "Gaussian" or noise_type == "Normal":
-        return np.random.normal(0, 1, (dim, M)).astype(np.float32)
+        return normal_matrix(dim, M)
     elif noise_type == "PMCoord":
         i = np.random.choice(M, dim)
-        B = np.zeros((dim, M))
+        B = np.zeros((dim, M), dtype=np.float32)
         B[np.arange(dim), i] = random_sign(dim)
+        return B
+    elif noise_type == "OH":
+        i = np.random.randint(0, M, dim)
+        B = np.zeros((dim, M), dtype=np.float32)
+        B[np.arange(dim), i] = 1
         return B
     elif noise_type == "Sparse":
         i = random_choice_noreplace(dim, M)[:, :sparsity]
-        B = np.zeros((dim, M))
+        B = np.zeros((dim, M), dtype=np.float32)
         B[np.expand_dims(np.arange(dim), axis=1), i] = random_sign(
             dim * sparsity
         ).reshape(dim, sparsity)
         return B
     elif noise_type == "SparseConsistent":
         i = random_choice_noreplace(dim, M)[:, :sparsity]
-        B = np.zeros((dim, M))
+        B = np.zeros((dim, M), dtype=np.float32)
         B[np.expand_dims(np.arange(dim), axis=1), i] = random_sign(dim).reshape(dim, 1)
         return B
     elif noise_type == "UnifCube":
-        return 2 * np.random.binomial(1, 0.5, (dim, M)) - 1
+        B = np.empty((dim, M), dtype=np.float32)
+        B[:] = 2 * np.random.binomial(1, 0.5, (dim, M)) - 1
+        return B
     else:
         raise NotImplementedError
 
@@ -198,15 +248,22 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
     # ensure the sampled vector is isotropic
     assert M > 0
     if noise_type == "Sphere":
-        v = np.random.randn(batch_size, dim, M).astype(np.float32)
-        v /= np.linalg.norm(v, axis=-11, keepdims=True)
+        v = np.empty((batch_size, dim, M), dtype=np.float32)
+        v[:] = np.random.randn(batch_size, dim, M)
+        v /= np.linalg.norm(v, axis=-1, keepdims=True)
         return v
     elif noise_type == "Gaussian" or noise_type == "Normal":
-        return np.random.normal(0, 1, (batch_size, dim, M)).astype(np.float32)
+        v = np.empty((batch_size, dim, M), dtype=np.float32)
+        v[:] = np.random.randn(batch_size, dim, M)
+        return v
     elif noise_type == "PMCoord":
-        B = np.zeros((M * 2, M))
+        B = np.zeros((M * 2, M), dtype=np.float32)
         B[np.arange(M), np.arange(M)] = 1
         B[np.arange(M) + M, np.arange(M)] = -1
+        B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        return B
+    elif noise_type == "OH":
+        B = np.eye(M, dtype=np.float32)
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
         return B
     elif noise_type == "Sparse":
@@ -216,7 +273,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         B = []
         for e in elements:
             e = np.expand_dims(np.array(e), 0).repeat(n, 0)
-            b = np.zeros((n, M))
+            b = np.zeros((n, M), dtype=np.float32)
             b[np.expand_dims(np.arange(n), axis=1), index] = e
             B.append(b)
         B = np.concatenate(B, 0)
@@ -228,14 +285,14 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         B = []
         for element in [1, -1]:
             e = np.ones((n, sparsity)) * element
-            b = np.zeros((n, M))
+            b = np.zeros((n, M), dtype=np.float32)
             b[np.expand_dims(np.arange(n), axis=1), index] = e
             B.append(b)
         B = np.concatenate(B, 0)
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
         return B
     elif noise_type == "UnifCube":
-        B = np.array(list((it.product(range(2), repeat=M))))
+        B = np.array(list((it.product(range(2), repeat=M))), dtype=np.float32)
         B = B * 2 - 1
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
         return B
