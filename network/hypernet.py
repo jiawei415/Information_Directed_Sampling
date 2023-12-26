@@ -231,13 +231,17 @@ class HyperNet(nn.Module):
         self.device = device
 
     def forward(self, z, x):
-        z = torch.as_tensor(z, device=self.device, dtype=torch.float32)
-        x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
+        if isinstance(x, np.ndarray):
+            x = torch.as_tensor(x, device=self.device)
+        if isinstance(z, np.ndarray):
+            z = torch.as_tensor(z, device=self.device)
+        # z = torch.as_tensor(z, device=self.device, dtype=torch.float32)
+        # x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
         logits = self.basedmodel(x)
         prior_logits = self.priormodel(x)
         out = self.out(z, logits, prior_logits)
         return out
 
     def regularization(self, z):
-        z = torch.as_tensor(z, device=self.device, dtype=torch.float32)
+        # z = torch.as_tensor(z, device=self.device, dtype=torch.float32)
         return self.out.regularization(z)

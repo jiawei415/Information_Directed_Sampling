@@ -27,7 +27,7 @@ def get_args():
     parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--n-features", type=int, default=50)
     parser.add_argument("--n-arms", type=int, default=20)
-    parser.add_argument("--all-arms", type=int, default=None)
+    parser.add_argument("--all-arms", type=int, default=1000)
     parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper")
@@ -39,12 +39,12 @@ def get_args():
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--action-noise", type=str, default="pn")
     parser.add_argument("--update-noise", type=str, default="pn")
-    parser.add_argument("--buffer-noise", type=str, default="spc")
+    parser.add_argument("--buffer-noise", type=str, default="sp")
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
     parser.add_argument("--update-start", type=int, default=128)
-    parser.add_argument("--update-num", type=int, default=2)
+    parser.add_argument("--update-num", type=int, default=1)
     # other config
     parser.add_argument("--n-expe", type=int, default=3)
     parser.add_argument("--log-dir", type=str, default="./results/bandit")
