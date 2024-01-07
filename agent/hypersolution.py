@@ -19,6 +19,7 @@ class ReplayBuffer:
             key: np.empty([buffer_size, *shape], dtype=np.float32)
             for key, shape in buffer_shape.items()
         }
+        self.buffer_size = buffer_size
         self.noise_dim = buffer_shape["z"][-1]
         self.save_full_feature = save_full_feature
         self.sample_num = 0
@@ -40,44 +41,49 @@ class ReplayBuffer:
             self.gen_noise = partial(sample_buffer_noise, "SparseConsistent", **args)
 
     def __len__(self):
-        return self.sample_num
+        return min(self.sample_num, self.buffer_size)
 
     def _sample(self, index):
         if self.save_full_feature:
-            a_data = self.buffers["a"][: self.sample_num]
-            f_data = s_data[np.arange(self.sample_num), a_data.astype(np.int32)][index]
-            s_data = self.buffers["s"][: self.sample_num][index]
+            a_data = self.buffers["a"]
+            f_data = s_data[np.arange(self.buffer_size), a_data.astype(np.int32)][index]
+            s_data = self.buffers["s"][index]
         else:
-            f_data = self.buffers["f"][: self.sample_num][index]
+            f_data = self.buffers["f"][index]
             s_data = None
-        r_data = self.buffers["r"][: self.sample_num][index]
-        z_data = self.buffers["z"][: self.sample_num][index]
+        r_data = self.buffers["r"][index]
+        z_data = self.buffers["z"][index]
         return s_data, f_data, r_data, z_data
 
     def reset(self):
         self.sample_num = 0
 
     def put(self, transition):
+        inset_index = self.sample_num
+        if self.sample_num >= self.buffer_size:
+            inset_index = self.sample_num % self.buffer_size
         if self.save_full_feature:
             for k, v in transition.items():
-                self.buffers[k][self.sample_num] = v
+                self.buffers[k][inset_index] = v
         else:
-            self.buffers["r"][self.sample_num] = transition["r"]
-            self.buffers["f"][self.sample_num] = transition["s"][transition["a"]]
+            self.buffers["r"][inset_index] = transition["r"]
+            self.buffers["f"][inset_index] = transition["s"][transition["a"]]
         z = self.gen_noise()
-        self.buffers["z"][self.sample_num] = z
+        self.buffers["z"][inset_index] = z
         self.sample_num += 1
 
     def get(self, shuffle=True):
         # get all data in buffer
-        index = list(range(self.sample_num))
+        sample_num = min(self.sample_num, self.buffer_size)
+        index = list(range(sample_num))
         if shuffle:
             np.random.shuffle(index)
         return self._sample(index)
 
     def sample(self, n):
         # get n data in buffer
-        index = np.random.randint(low=0, high=self.sample_num, size=n)
+        sample_num = min(self.sample_num, self.buffer_size)
+        index = np.random.randint(low=0, high=sample_num, size=n)
         return self._sample(index)
 
 
