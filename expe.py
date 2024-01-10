@@ -277,8 +277,9 @@ def FiniteContextHyperMAB_expe(
     colors,
     path,
     problem="FreqRusso",
-    doplot=True,
+    doplot=False,
     freq_task=True,
+    seed=2022,
     **kwargs,
 ):
     """
@@ -357,7 +358,9 @@ def FiniteContextHyperMAB_expe(
         raise NotImplementedError
 
     print("Begin experiments on '{}'".format(title))
-    results = storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=True)
+    results = storeRegret(
+        models, methods, param_dic, n_expe, T, path, seed, use_torch=True
+    )
     if doplot:
         plotRegret(labels, results, colors, title, path, log=False)
     return results
@@ -374,8 +377,9 @@ def InfiniteContextHyperMAB_expe(
     colors,
     path,
     problem="FreqRusso",
-    doplot=True,
+    doplot=False,
     freq_task=True,
+    seed=2022,
     **kwargs,
 ):
     """
@@ -434,7 +438,9 @@ def InfiniteContextHyperMAB_expe(
         raise NotImplementedError
 
     print("Begin experiments on '{}'".format(title))
-    results = storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=True)
+    results = storeRegret(
+        models, methods, param_dic, n_expe, T, path, seed, use_torch=True
+    )
     if doplot:
         plotRegret(labels, results, colors, title, path, log=False)
     return results

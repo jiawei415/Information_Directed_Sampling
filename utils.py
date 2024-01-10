@@ -9,6 +9,7 @@ import scipy.stats as st
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
+from logger import configure
 
 cmap = {
     0: "black",
@@ -351,7 +352,9 @@ def plotRegret(labels, regret, colors, title, path, log=False):
     plt.savefig(path + "/regret.pdf")
 
 
-def storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=False):
+def storeRegret(
+    models, methods, param_dic, n_expe, T, path, seed=2022, use_torch=False
+):
     """
     Compute the experiment for all specified models and methods
     :param models: list of MAB
@@ -362,21 +365,16 @@ def storeRegret(models, methods, param_dic, n_expe, T, path, use_torch=False):
     :return: Dictionnary with results from the experiments
     """
     all_regrets = np.zeros((len(methods), n_expe, T), dtype=np.float32)
-    os.makedirs(os.path.join(path, "csv_data"), exist_ok=True)
     for i, m in enumerate(methods):
-        set_seed(2022, use_torch=use_torch)
+        set_seed(seed, use_torch=use_torch)
         alg_name = m.split(":")[0]
-        file_name = m.replace(":", "_").replace(" ", "_").lower()
-        file = open(os.path.join(path, "csv_data", f"{file_name}.csv"), "w+t")
-        writer = csv.writer(file, delimiter=",")
+        logger = configure(path, ["csv"])
         for j in tqdm(range(n_expe)):
             model = models[j]
             alg = model.__getattribute__(alg_name)
-            args = inspect.getfullargspec(alg)[0][2:]
-            args = [T] + [param_dic[m][i] for i in args]
+            args = inspect.getfullargspec(alg)[0][3:]
+            args = [T, logger] + [param_dic[m][i] for i in args]
             reward, regret = alg(*args)
-            writer.writerow(regret)
-            file.flush()
             all_regrets[i, j, :] = np.cumsum(regret)
         print(f"{m}: {np.mean(all_regrets[i], axis=0)[-1]}")
 
