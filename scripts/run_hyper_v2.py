@@ -37,15 +37,17 @@ def get_args():
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--z-coef", type=float, default=None)
     parser.add_argument("--NpS", type=int, default=16)
-    parser.add_argument("--action-noise", type=str, default="pn")
+    parser.add_argument("--action-noise", type=str, default="gs")
     parser.add_argument("--update-noise", type=str, default="pn")
     parser.add_argument("--buffer-noise", type=str, default="sp")
+    parser.add_argument("--buffer-size", type=int, default=None)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
     parser.add_argument("--update-start", type=int, default=128)
     parser.add_argument("--update-num", type=int, default=1)
     # other config
+    parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=3)
     parser.add_argument("--log-dir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
@@ -54,7 +56,7 @@ def get_args():
 
 args = get_args()
 game = args.game
-dir = f"{game.lower()}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+dir = f"{game.lower()}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
 path = os.path.expanduser(os.path.join(args.log_dir, game, dir))
 os.makedirs(path, exist_ok=True)
 
@@ -73,6 +75,7 @@ based_param = {
     "action_noise": args.action_noise,
     "update_noise": args.update_noise,
     "buffer_noise": args.buffer_noise,
+    "buffer_size": args.buffer_size,
 }
 param = {
     "TS": {},
@@ -149,6 +152,7 @@ expe_params = {
     "colors": colors,
     "path": path,
     "problem": game,
+    "seed": args.seed,
     **game_config[game],
 }
 if args.n_context > 0:

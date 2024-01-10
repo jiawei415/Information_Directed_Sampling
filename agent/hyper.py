@@ -130,6 +130,7 @@ class HyperMAB:
     def Hyper(
         self,
         T,
+        logger,
         noise_dim=2,
         lr=0.01,
         weight_decay=0.01,
@@ -143,8 +144,10 @@ class HyperMAB:
         action_noise="pn",
         update_noise="gs",
         buffer_noise="sp",
+        buffer_size=None,
     ):
         z_coef = z_coef or self.eta
+        buffer_size = buffer_size or T
         model = HyperSolution(
             noise_dim,
             self.n_a,
@@ -155,7 +158,7 @@ class HyperMAB:
             optim=optim,
             noise_coef=z_coef,
             weight_decay=weight_decay,
-            buffer_size=T,
+            buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
             update_noise=update_noise,
@@ -163,6 +166,7 @@ class HyperMAB:
             model_type="hyper",
         )
 
+        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
             T, dtype=np.float32
         )
@@ -179,11 +183,16 @@ class HyperMAB:
             if t >= update_start:
                 for _ in range(update_num):
                     model.update()
+            if t == 0 or (t + 1) % log_interval == 0:
+                logger.record("step", t + 1)
+                logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.dump(t)
         return reward, expected_regret
 
     def EpiNet(
         self,
         T,
+        logger,
         noise_dim=2,
         lr=0.01,
         weight_decay=0.01,
@@ -197,8 +206,10 @@ class HyperMAB:
         action_noise="gs",
         update_noise="gs",
         buffer_noise="sp",
+        buffer_size=None,
     ):
         z_coef = z_coef or self.eta
+        buffer_size = buffer_size or T
         model = HyperSolution(
             noise_dim,
             self.n_a,
@@ -209,7 +220,7 @@ class HyperMAB:
             optim=optim,
             noise_coef=z_coef,
             weight_decay=weight_decay,
-            buffer_size=T,
+            buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
             update_noise=update_noise,
@@ -217,6 +228,7 @@ class HyperMAB:
             model_type="epinet",
         )
 
+        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
             T, dtype=np.float32
         )
@@ -233,11 +245,16 @@ class HyperMAB:
             if t >= update_start:
                 for _ in range(update_num):
                     model.update()
+            if t == 0 or (t + 1) % log_interval == 0:
+                logger.record("step", t + 1)
+                logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.dump(t)
         return reward, expected_regret
 
     def Ensemble(
         self,
         T,
+        logger,
         noise_dim=2,
         lr=0.01,
         weight_decay=0.01,
@@ -251,8 +268,10 @@ class HyperMAB:
         action_noise="oh",
         update_noise="oh",
         buffer_noise="gs",
+        buffer_size=None,
     ):
         z_coef = z_coef or self.eta
+        buffer_size = buffer_size or T
         model = HyperSolution(
             noise_dim,
             self.n_a,
@@ -263,7 +282,7 @@ class HyperMAB:
             optim=optim,
             noise_coef=z_coef,
             weight_decay=weight_decay,
-            buffer_size=T,
+            buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
             update_noise=update_noise,
@@ -271,6 +290,7 @@ class HyperMAB:
             model_type="ensemble",
         )
 
+        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
             T, dtype=np.float32
         )
@@ -287,6 +307,10 @@ class HyperMAB:
             if t >= update_start:
                 for _ in range(update_num):
                     model.update()
+            if t == 0 or (t + 1) % log_interval == 0:
+                logger.record("step", t + 1)
+                logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.dump(t)
         return reward, expected_regret
 
     def computeVIDS_v1(self, thetas):
