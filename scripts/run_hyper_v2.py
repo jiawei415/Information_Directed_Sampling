@@ -95,6 +95,7 @@ param = {
         "update_noise": "oh",
         "buffer_noise": "gs",
     },
+    "LMCTS": {**based_param},
 }
 
 methods = [args.method]
