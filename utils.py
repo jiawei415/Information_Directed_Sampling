@@ -1,4 +1,5 @@
 """ Packages import """
+
 import os
 import csv
 import inspect
@@ -212,13 +213,14 @@ def sample_action_noise(noise_type, M, dim=1, sparsity=2):
     # ensure the sampled vector is isotropic
     assert M > 0
     if noise_type == "Sphere":
-        return sphere_matrix(dim, M)
+        return sphere_matrix(dim, M) * np.sqrt(M)
     elif noise_type == "Gaussian" or noise_type == "Normal":
         return normal_matrix(dim, M)
     elif noise_type == "PMCoord":
         i = np.random.choice(M, dim)
         B = np.zeros((dim, M), dtype=np.float32)
         B[np.arange(dim), i] = random_sign(dim)
+        B *= np.sqrt(M)
         return B
     elif noise_type == "OH":
         i = np.random.randint(0, M, dim)
@@ -252,6 +254,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         v = np.empty((batch_size, dim, M), dtype=np.float32)
         v[:] = np.random.randn(batch_size, dim, M)
         v /= np.linalg.norm(v, axis=-1, keepdims=True)
+        v *= np.sqrt(M)
         return v
     elif noise_type == "Gaussian" or noise_type == "Normal":
         v = np.empty((batch_size, dim, M), dtype=np.float32)
@@ -262,6 +265,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         B[np.arange(M), np.arange(M)] = 1
         B[np.arange(M) + M, np.arange(M)] = -1
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        B *= np.sqrt(M)
         return B
     elif noise_type == "OH":
         B = np.eye(M, dtype=np.float32)
