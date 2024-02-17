@@ -127,15 +127,15 @@ class HyperSolution:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model_type = model_type
 
-        self.__init_model_optimizer()
-        self.__init_buffer()
+        self.init_model_optimizer()
+        self.init_buffer()
         self.set_update_noise()
         self.set_action_noise()
         self.update = (
             getattr(self, "_update_reset") if reset else getattr(self, "_update")
         )
 
-    def __init_model_optimizer(self):
+    def init_model_optimizer(self):
         # init hypermodel
         model_param = {
             "in_features": self.feature_dim,
@@ -174,7 +174,7 @@ class HyperSolution:
         else:
             raise NotImplementedError
 
-    def __init_buffer(self):
+    def init_buffer(self):
         # init replay buffer
         # buffer_shape = {
         #     "s": (self.action_dim, self.feature_dim),
@@ -304,4 +304,4 @@ class HyperSolution:
             )
 
     def reset(self):
-        self.__init_model_optimizer()
+        self.init_model_optimizer()
