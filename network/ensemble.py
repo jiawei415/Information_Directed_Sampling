@@ -32,13 +32,13 @@ class EnsembleNet(nn.Module):
         super().__init__()
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
         self.out = nn.ModuleList(
-            [mlp(hidden_sizes[-1], 1, ensemble_sizes, False) for _ in range(noise_dim)]
+            [mlp(hidden_sizes[-1], 1, ensemble_sizes, True) for _ in range(noise_dim)]
         )
         if prior_scale > 0:
             self.priormodel = mlp(in_features, 0, hidden_sizes)
             self.prior_out = nn.ModuleList(
                 [
-                    mlp(hidden_sizes[-1], 1, ensemble_sizes, False)
+                    mlp(hidden_sizes[-1], 1, ensemble_sizes, True)
                     for _ in range(noise_dim)
                 ]
             )
