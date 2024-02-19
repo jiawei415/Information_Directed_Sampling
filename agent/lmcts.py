@@ -117,6 +117,13 @@ class LMCTS(HyperSolution):
     def put(self, transition):
         self.buffer.put(transition)
 
+    def _update(self):
+        if self.batch_size == 0:
+            s_batch, f_batch, r_batch, z_batch = self.buffer.sample_all()
+        else:
+            s_batch, f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
+        self.learn(s_batch, f_batch, r_batch, z_batch)
+
     def learn(self, s_batch, f_batch, r_batch, z_batch):
         # z_batch = torch.FloatTensor(z_batch).to(self.device)
         f_batch = torch.FloatTensor(f_batch).to(self.device)

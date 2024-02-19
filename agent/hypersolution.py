@@ -81,6 +81,9 @@ class ReplayBuffer:
         index = np.random.randint(low=0, high=self.sample_num, size=n)
         return self._sample(index)
 
+    def sample_all(self):
+        return self._sample(range(self.sample_num))
+
 
 class HyperSolution:
     def __init__(
