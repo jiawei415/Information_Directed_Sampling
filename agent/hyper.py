@@ -353,6 +353,7 @@ class HyperMAB:
             model_type="linear",
         )
 
+        update_step, decay_step = 0, 20
         log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
             T, dtype=np.float32
@@ -368,8 +369,15 @@ class HyperMAB:
             model.put(transitions)
             # update hypermodel
             if t >= update_start:
-                for _ in range(update_num):
+                if update_num == 0:
+                    num_iter = min(t + 1, 100)
+                else:
+                    num_iter = update_num
+                if decay_step > 0 and update_step > 0 and update_step % decay_step == 0:
+                    model.optimizer.lr = model.lr / update_step
+                for _ in range(num_iter):
                     model.update()
+                update_step += 1
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])

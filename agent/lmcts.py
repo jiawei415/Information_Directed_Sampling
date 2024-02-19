@@ -113,15 +113,11 @@ class LMCTS(HyperSolution):
             beta_inv=beta_inv,
             weight_decay=self.weight_decay,
         )
-        self.step = 0
-        self.decay_step = 0
 
     def put(self, transition):
         self.buffer.put(transition)
 
     def learn(self, s_batch, f_batch, r_batch, z_batch):
-        if self.decay_step > 0 and self.step % self.decay_step == 0:
-            self.optimizer.lr = self.lr / self.step
         # z_batch = torch.FloatTensor(z_batch).to(self.device)
         f_batch = torch.FloatTensor(f_batch).to(self.device)
         r_batch = torch.FloatTensor(r_batch).to(self.device)
@@ -149,7 +145,6 @@ class LMCTS(HyperSolution):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.step += 1
 
     def predict(self, features, num=1):
         with torch.no_grad():
