@@ -99,7 +99,8 @@ class HyperSolution:
         optim: str = "Adam",
         fg_lambda: float = 0.0,
         fg_decay: bool = True,
-        weight_decay: float = 0.01,
+        based_weight_decay: float = 0.01,
+        hyper_weight_decay: float = 0.01,
         noise_coef: float = 0.01,
         buffer_size: int = 10000,
         buffer_noise: str = "sp",
@@ -121,7 +122,8 @@ class HyperSolution:
         self.batch_size = batch_size
         self.NpS = NpS
         self.optim = optim
-        self.weight_decay = weight_decay
+        self.based_weight_decay = based_weight_decay
+        self.hyper_weight_decay = hyper_weight_decay
         self.noise_coef = noise_coef
         self.buffer_size = buffer_size
         self.action_noise = action_noise
@@ -163,17 +165,30 @@ class HyperSolution:
             f"Network parameters: {sum(param.numel() for param in self.model.parameters() if param.requires_grad)}"
         )
         # init optimizer
+        trainable_params = [
+            {
+                "params": (
+                    p
+                    for name, p in self.model.named_parameters()
+                    if "basedmodel" in name and "prior" not in name
+                ),
+                "weight_decay": self.based_weight_decay,
+                "name": "based",
+            },
+            {
+                "params": (
+                    p
+                    for name, p in self.model.named_parameters()
+                    if "out" in name and "prior" not in name
+                ),
+                "weight_decay": self.hyper_weight_decay,
+                "name": "hyper",
+            },
+        ]
         if self.optim == "Adam":
-            self.optimizer = torch.optim.Adam(
-                self.model.parameters(), lr=self.lr, weight_decay=self.weight_decay
-            )
+            self.optimizer = torch.optim.Adam(trainable_params, lr=self.lr)
         elif self.optim == "SGD":
-            self.optimizer = torch.optim.SGD(
-                self.model.parameters(),
-                lr=self.lr,
-                weight_decay=self.weight_decay,
-                momentum=0.9,
-            )
+            self.optimizer = torch.optim.SGD(trainable_params, lr=self.lr, momentum=0.9)
         else:
             raise NotImplementedError
 
@@ -251,9 +266,10 @@ class HyperSolution:
             loss = (diff - fg_lambda * fg_term).mean()
         else:
             loss = diff.mean()
-        # norm_coef = self.norm_coef / len(self.buffer)
-        # reg_loss = self.model.regularization(update_noise) * norm_coef
-        # loss += reg_loss
+
+        for param_group in self.optimizer.param_groups:
+            if param_group["name"] == "hyper":
+                param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)
 
         self.optimizer.zero_grad()
         loss.backward()

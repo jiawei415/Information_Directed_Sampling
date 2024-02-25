@@ -134,7 +134,8 @@ class HyperMAB:
         logger,
         noise_dim=2,
         lr=0.01,
-        weight_decay=0.01,
+        based_weight_decay=0.0,
+        hyper_weight_decay=0.0,
         z_coef=None,
         batch_size=32,
         hidden_sizes=(),
@@ -158,7 +159,8 @@ class HyperMAB:
             batch_size=batch_size,
             optim=optim,
             noise_coef=z_coef,
-            weight_decay=weight_decay,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
             buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
@@ -196,7 +198,8 @@ class HyperMAB:
         logger,
         noise_dim=2,
         lr=0.01,
-        weight_decay=0.01,
+        based_weight_decay=0.0,
+        hyper_weight_decay=0.0,
         z_coef=None,
         batch_size=32,
         hidden_sizes=(),
@@ -220,7 +223,8 @@ class HyperMAB:
             batch_size=batch_size,
             optim=optim,
             noise_coef=z_coef,
-            weight_decay=weight_decay,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
             buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
@@ -258,7 +262,8 @@ class HyperMAB:
         logger,
         noise_dim=2,
         lr=0.01,
-        weight_decay=0.01,
+        based_weight_decay=0.0,
+        hyper_weight_decay=0.0,
         z_coef=None,
         batch_size=32,
         hidden_sizes=(),
@@ -282,7 +287,8 @@ class HyperMAB:
             batch_size=batch_size,
             optim=optim,
             noise_coef=z_coef,
-            weight_decay=weight_decay,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
             buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
@@ -320,7 +326,8 @@ class HyperMAB:
         logger,
         noise_dim=2,
         lr=0.01,
-        weight_decay=0.01,
+        based_weight_decay=0.0,
+        hyper_weight_decay=0.0,
         z_coef=None,
         batch_size=32,
         hidden_sizes=(),
@@ -344,7 +351,8 @@ class HyperMAB:
             batch_size=batch_size,
             optim=optim,
             noise_coef=z_coef,
-            weight_decay=weight_decay,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
             buffer_size=buffer_size,
             NpS=NpS,
             action_noise=action_noise,
@@ -353,7 +361,7 @@ class HyperMAB:
             model_type="linear",
         )
 
-        update_step, decay_step = 0, 20
+        update_step = 0
         log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
             T, dtype=np.float32
@@ -373,7 +381,7 @@ class HyperMAB:
                     num_iter = min(t + 1, 100)
                 else:
                     num_iter = update_num
-                if decay_step > 0 and update_step > 0 and update_step % decay_step == 0:
+                if update_num == 0 and update_step > 0 and update_step % 20 == 0:
                     model.optimizer.lr = model.lr / update_step
                 for _ in range(num_iter):
                     model.update()

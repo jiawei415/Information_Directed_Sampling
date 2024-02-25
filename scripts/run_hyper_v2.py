@@ -33,7 +33,8 @@ def get_args():
     parser.add_argument("--method", type=str, default="Hyper")
     parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--weight-decay", type=float, default=0)
+    parser.add_argument("--based-weight-decay", type=float, default=0)
+    parser.add_argument("--hyper-weight-decay", type=float, default=0)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--z-coef", type=float, default=None)
     parser.add_argument("--NpS", type=int, default=16)
@@ -64,7 +65,8 @@ args.hidden_sizes = [args.hidden_size] * args.hidden_layer
 based_param = {
     "noise_dim": args.noise_dim,
     "lr": args.lr,
-    "weight_decay": args.weight_decay,
+    "based_weight_decay": args.based_weight_decay,
+    "hyper_weight_decay": args.hyper_weight_decay,
     "z_coef": args.z_coef,
     "optim": args.optim,
     "update_start": args.update_start,
