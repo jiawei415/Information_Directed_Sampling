@@ -173,7 +173,6 @@ class HyperSolution:
                     if "basedmodel" in name and "prior" not in name
                 ),
                 "weight_decay": self.based_weight_decay,
-                "name": "based",
             },
             {
                 "params": (
@@ -182,7 +181,6 @@ class HyperSolution:
                     if "out" in name and "prior" not in name
                 ),
                 "weight_decay": self.hyper_weight_decay,
-                "name": "hyper",
             },
         ]
         if self.optim == "Adam":
@@ -268,8 +266,7 @@ class HyperSolution:
             loss = diff.mean()
 
         for param_group in self.optimizer.param_groups:
-            if param_group["name"] == "hyper":
-                param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)
+            param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)
 
         self.optimizer.zero_grad()
         loss.backward()
