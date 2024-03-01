@@ -29,6 +29,7 @@ def get_args():
     parser.add_argument("--n-arms", type=int, default=20)
     parser.add_argument("--all-arms", type=int, default=1000)
     parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
+    parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper")
     parser.add_argument("--noise-dim", type=int, default=4)
@@ -109,10 +110,10 @@ base_config = {
     "freq_task": args.freq_task,
 }
 game_config = {
-    "Synthetic-v1": {**base_config, "all_arms": args.all_arms},
-    "Synthetic-v2": {**base_config, "all_arms": args.all_arms},
-    "Synthetic-v3": {**base_config, "all_arms": args.all_arms},
-    "Synthetic-v4": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v1": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v2": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v4": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
     "RealData-v1": {**base_config},
     "RealData-v2": {**base_config},
     "RealData-v3": {**base_config},

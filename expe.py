@@ -1,4 +1,5 @@
 """ Packages import """
+
 from agent.BernoulliMAB import BetaBernoulliMAB
 from agent.GaussianMAB import GaussianMAB
 from agent.FiniteSetsMAB import FiniteSets
@@ -345,6 +346,7 @@ def FiniteContextHyperMAB_expe(
                     all_actions=kwargs["all_arms"],
                     reward_version=rew_v,
                     freq_task=freq_task,
+                    eta=kwargs.get("eta", 0.1),
                 )
             )
             for _ in range(n_expe)
@@ -429,6 +431,7 @@ def InfiniteContextHyperMAB_expe(
                     reward_version=rew_v,
                     freq_task=freq_task,
                     resample_feature=True,
+                    eta=kwargs.get("eta", 0.1),
                 )
             )
             for _ in range(n_expe)
