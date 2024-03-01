@@ -180,7 +180,7 @@ def sample_buffer_noise(noise_type, M, sparsity=2):
     if noise_type == "Sphere":
         return sphere_matrix(1, M)[0]
     elif noise_type == "Gaussian" or noise_type == "Normal":
-        return normal_matrix(1, M)[0]
+        return normal_matrix(1, M)[0] / np.sqrt(M)
     elif noise_type == "PMCoord":
         i = np.random.choice(M)
         B = np.zeros(M, dtype=np.float32)
@@ -220,8 +220,7 @@ def sample_action_noise(noise_type, M, dim=1, sparsity=2):
         i = np.random.choice(M, dim)
         B = np.zeros((dim, M), dtype=np.float32)
         B[np.arange(dim), i] = random_sign(dim)
-        B *= np.sqrt(M)
-        return B
+        return B * np.sqrt(M)
     elif noise_type == "OH":
         i = np.random.randint(0, M, dim)
         B = np.zeros((dim, M), dtype=np.float32)
@@ -233,12 +232,12 @@ def sample_action_noise(noise_type, M, dim=1, sparsity=2):
         B[np.expand_dims(np.arange(dim), axis=1), i] = random_sign(
             dim * sparsity
         ).reshape(dim, sparsity)
-        return B
+        return B / np.sqrt(sparsity) * np.sqrt(M)
     elif noise_type == "SparseConsistent":
         i = random_choice_noreplace(dim, M)[:, :sparsity]
         B = np.zeros((dim, M), dtype=np.float32)
         B[np.expand_dims(np.arange(dim), axis=1), i] = random_sign(dim).reshape(dim, 1)
-        return B
+        return B / np.sqrt(sparsity) * np.sqrt(M)
     elif noise_type == "UnifCube":
         B = np.empty((dim, M), dtype=np.float32)
         B[:] = 2 * np.random.binomial(1, 0.5, (dim, M)) - 1
@@ -254,8 +253,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         v = np.empty((batch_size, dim, M), dtype=np.float32)
         v[:] = np.random.randn(batch_size, dim, M)
         v /= np.linalg.norm(v, axis=-1, keepdims=True)
-        v *= np.sqrt(M)
-        return v
+        return v * np.sqrt(M)
     elif noise_type == "Gaussian" or noise_type == "Normal":
         v = np.empty((batch_size, dim, M), dtype=np.float32)
         v[:] = np.random.randn(batch_size, dim, M)
@@ -265,8 +263,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         B[np.arange(M), np.arange(M)] = 1
         B[np.arange(M) + M, np.arange(M)] = -1
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
-        B *= np.sqrt(M)
-        return B
+        return B * np.sqrt(M)
     elif noise_type == "OH":
         B = np.eye(M, dtype=np.float32)
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
@@ -283,7 +280,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
             B.append(b)
         B = np.concatenate(B, 0)
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
-        return B
+        return B / np.sqrt(sparsity) * np.sqrt(M)
     elif noise_type == "SparseConsistent":
         index = np.array([list(c) for c in it.combinations(list(range(M)), sparsity)])
         n = len(index)
@@ -295,7 +292,7 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
             B.append(b)
         B = np.concatenate(B, 0)
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
-        return B
+        return B / np.sqrt(sparsity) * np.sqrt(M)
     elif noise_type == "UnifCube":
         B = np.array(list((it.product(range(2), repeat=M))), dtype=np.float32)
         B = B * 2 - 1
