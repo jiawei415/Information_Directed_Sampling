@@ -148,7 +148,7 @@ class HyperMAB:
         buffer_noise="sp",
         buffer_size=None,
     ):
-        z_coef = z_coef or self.eta
+        z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = HyperSolution(
             noise_dim,
@@ -212,7 +212,7 @@ class HyperMAB:
         buffer_noise="sp",
         buffer_size=None,
     ):
-        z_coef = z_coef or self.eta
+        z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = HyperSolution(
             noise_dim,
@@ -276,7 +276,7 @@ class HyperMAB:
         buffer_noise="gs",
         buffer_size=None,
     ):
-        z_coef = z_coef or self.eta
+        z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = HyperSolution(
             noise_dim,
@@ -340,7 +340,7 @@ class HyperMAB:
         buffer_noise="gs",
         buffer_size=None,
     ):
-        z_coef = z_coef or self.eta
+        z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = LMCTS(
             noise_dim,
