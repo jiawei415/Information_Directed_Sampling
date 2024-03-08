@@ -34,10 +34,10 @@ def get_args():
     parser.add_argument("--method", type=str, default="Hyper")
     parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--based-weight-decay", type=float, default=0)
-    parser.add_argument("--hyper-weight-decay", type=float, default=0)
+    parser.add_argument("--based-weight-decay", type=float, default=0.0)
+    parser.add_argument("--hyper-weight-decay", type=float, default=0.01)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
-    parser.add_argument("--z-coef", type=float, default=None)
+    parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--action-noise", type=str, default="gs")
     parser.add_argument("--update-noise", type=str, default="pn")
@@ -48,6 +48,7 @@ def get_args():
     parser.add_argument("--hidden-layer", type=int, default=2)
     parser.add_argument("--update-start", type=int, default=128)
     parser.add_argument("--update-num", type=int, default=1)
+    parser.add_argument("--update-freq", type=int, default=1)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=3)
@@ -72,6 +73,7 @@ based_param = {
     "optim": args.optim,
     "update_start": args.update_start,
     "update_num": args.update_num,
+    "update_freq": args.update_freq,
     "batch_size": args.batch_size,
     "hidden_sizes": args.hidden_sizes,
     "NpS": args.NpS,
@@ -112,7 +114,7 @@ base_config = {
 game_config = {
     "Synthetic-v1": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
     "Synthetic-v2": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
-    "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": 0.0},
     "Synthetic-v4": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
     "RealData-v1": {**base_config},
     "RealData-v2": {**base_config},

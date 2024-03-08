@@ -142,6 +142,7 @@ class HyperMAB:
         optim="Adam",
         update_num=2,
         update_start=32,
+        update_freq=1,
         NpS=20,
         action_noise="pn",
         update_noise="gs",
@@ -183,7 +184,7 @@ class HyperMAB:
             transitions = {"s": self.features, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
-            if t >= update_start:
+            if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
                     model.update()
             if t == 0 or (t + 1) % log_interval == 0:
@@ -206,6 +207,7 @@ class HyperMAB:
         optim="Adam",
         update_num=2,
         update_start=32,
+        update_freq=1,
         NpS=20,
         action_noise="gs",
         update_noise="gs",
@@ -247,7 +249,7 @@ class HyperMAB:
             transitions = {"s": self.features, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
-            if t >= update_start:
+            if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
                     model.update()
             if t == 0 or (t + 1) % log_interval == 0:
@@ -270,6 +272,7 @@ class HyperMAB:
         optim="Adam",
         update_num=2,
         update_start=32,
+        update_freq=1,
         NpS=20,
         action_noise="oh",
         update_noise="oh",
@@ -311,7 +314,7 @@ class HyperMAB:
             transitions = {"s": self.features, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
-            if t >= update_start:
+            if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
                     model.update()
             if t == 0 or (t + 1) % log_interval == 0:
@@ -334,6 +337,7 @@ class HyperMAB:
         optim="Adam",
         update_num=2,
         update_start=32,
+        update_freq=1,
         NpS=20,
         action_noise="oh",
         update_noise="oh",
@@ -376,7 +380,7 @@ class HyperMAB:
             transitions = {"s": self.features, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
-            if t >= update_start:
+            if t >= update_start and (t + 1) % update_freq == 0:
                 if update_num == 0:
                     num_iter = min(t + 1, 100)
                 else:
