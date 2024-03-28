@@ -48,7 +48,8 @@ def get_args():
     parser.add_argument("--hidden-layer", type=int, default=2)
     parser.add_argument("--update-start", type=int, default=128)
     parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--update-freq", type=int, default=1)
+    parser.add_argument("--update-freq", type=int, default=4)
+    parser.add_argument("--prior-scale", type=float, default=5.0)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=3)
@@ -76,6 +77,7 @@ based_param = {
     "update_freq": args.update_freq,
     "batch_size": args.batch_size,
     "hidden_sizes": args.hidden_sizes,
+    "prior_scale": args.prior_scale,
     "NpS": args.NpS,
     "action_noise": args.action_noise,
     "update_noise": args.update_noise,
