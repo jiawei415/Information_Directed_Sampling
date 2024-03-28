@@ -216,6 +216,7 @@ class HyperMAB:
         update_noise="gs",
         buffer_noise="sp",
         buffer_size=None,
+        class_num=1,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -224,6 +225,7 @@ class HyperMAB:
             self.n_a,
             self.d,
             hidden_sizes=hidden_sizes,
+            class_num=class_num,
             prior_scale=prior_scale,
             lr=lr,
             batch_size=batch_size,
@@ -246,6 +248,8 @@ class HyperMAB:
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)
+            if class_num > 1:
+                value = value[:, 1]
             a_t = rd_argmax(value)
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)

@@ -24,13 +24,17 @@ class EnsemblePrior(nn.Module):
     def __init__(
         self,
         in_features: int,
+        out_features: int,
         device: Optional[Union[str, int, torch.device]],
         ensemble_num: int,
         ensemble_sizes: Sequence[int] = [5],
     ):
         super().__init__()
         self.basedmodel = nn.ModuleList(
-            [mlp(in_features, 1, ensemble_sizes) for _ in range(ensemble_num)]
+            [
+                mlp(in_features, out_features, ensemble_sizes)
+                for _ in range(ensemble_num)
+            ]
         )
 
         self.device = device
@@ -41,8 +45,8 @@ class EnsemblePrior(nn.Module):
         self, x: torch.Tensor, noise: torch.Tensor = None
     ) -> Tuple[torch.Tensor, Any]:
         out = [self.basedmodel[k](x) for k in self.head_list]
-        out = torch.hstack(out)
-        out = torch.einsum("bz, bnz -> bn", out, noise)
+        out = torch.stack(out, 1)
+        out = torch.einsum("bzc, bnz -> bnc", out, noise)
         return out
 
 
@@ -52,7 +56,8 @@ class EpiLinear(nn.Module):
         noise_dim: int,
         state_dim: int,
         hidden_dim: int,
-        epinet_sizes: Sequence[int],
+        class_num: int = 1,
+        epinet_sizes: Sequence[int] = (15,),
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         epinet_init: str = "xavier_normal",
@@ -61,15 +66,16 @@ class EpiLinear(nn.Module):
         super().__init__()
         self.epinet_init = epinet_init
         self.in_features = noise_dim + hidden_dim + state_dim
-        self.out_features = noise_dim
+        self.out_features = noise_dim * class_num
         self.epinet = mlp(self.in_features, self.out_features, epinet_sizes)
         if prior_scale > 0:
-            self.priornet = EnsemblePrior(state_dim, device, noise_dim)
+            self.priornet = EnsemblePrior(state_dim, class_num, device, noise_dim)
             for param in self.priornet.parameters():
                 param.requires_grad = False
         self.reset_parameters()
 
         self.noise_dim = noise_dim
+        self.class_num = class_num
         self.posterior_scale = posterior_scale
         self.prior_scale = prior_scale
         self.device = device
@@ -101,8 +107,8 @@ class EpiLinear(nn.Module):
         epinet_inp = epinet_inp.unsqueeze(1).repeat(1, z.shape[1], 1)
         epinet_inp = torch.cat([epinet_inp, z], dim=-1)
         out = self.epinet(epinet_inp)
-        out = out.view(batch_size, -1, self.noise_dim)
-        out = torch.einsum("bsn, bsn -> bs", out, z)
+        out = out.view(batch_size, -1, self.noise_dim, self.class_num)
+        out = torch.einsum("bsna, bsn -> bsa", out, z)
         if self.prior_scale > 0:
             prior_out = self.priornet(x, z)
             out = out * self.posterior_scale + prior_out * self.prior_scale
@@ -113,6 +119,7 @@ class EpiNet(nn.Module):
     def __init__(
         self,
         in_features: int,
+        class_num: int = 1,
         hidden_sizes: Sequence[int] = (),
         noise_dim: int = 2,
         prior_scale: float = 1.0,
@@ -123,18 +130,20 @@ class EpiNet(nn.Module):
         super().__init__()
 
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
-        self.based_out = nn.Linear(hidden_sizes[-1], 1)
+        self.based_out = nn.Linear(hidden_sizes[-1], class_num)
 
         based_in_feature = self.based_out.in_features
         self.epi_out = EpiLinear(
             noise_dim,
             in_features,
             based_in_feature,
+            class_num,
             [15],
             prior_scale,
             posterior_scale,
             device=device,
         )
+        self.class_num = class_num
         self.feature_sg = feature_sg
         self.device = device
 
@@ -146,7 +155,11 @@ class EpiNet(nn.Module):
         if self.feature_sg:
             logits = logits.detach()
         epi_out = self.epi_out(x, logits, z)
-        out = epi_out + based_out
-        if len(out.shape) == 2 and out.shape[-1] == 1:
+        out = epi_out + based_out.unsqueeze(1)
+        if self.class_num > 1:
+            out = torch.softmax(out, dim=-1)
+        else:
             out = out.squeeze(-1)
+        if out.shape[1] == 1 and z.shape[0] == 1:
+            out = out.squeeze(1)
         return out

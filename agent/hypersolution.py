@@ -6,6 +6,7 @@ sys.path.append("..")
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from utils import sample_action_noise, sample_update_noise, sample_buffer_noise
 from network import HyperNet, EnsembleNet, EpiNet
@@ -91,6 +92,7 @@ class HyperSolution:
         noise_dim: int,
         n_action: int,
         n_feature: int,
+        class_num: int = 1,
         hidden_sizes: Sequence[int] = (),
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
@@ -113,6 +115,7 @@ class HyperSolution:
         self.noise_dim = noise_dim
         self.action_dim = n_action
         self.feature_dim = n_feature
+        self.class_num = class_num
         self.hidden_sizes = hidden_sizes
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
@@ -154,6 +157,7 @@ class HyperSolution:
             Net = HyperNet
             model_param.update({"hyper_bias": True})
         elif self.model_type == "epinet":
+            model_param.update({"class_num": self.class_num})
             Net = EpiNet
         elif self.model_type == "ensemble":
             Net = EnsembleNet
@@ -251,19 +255,22 @@ class HyperSolution:
         target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
 
         predict = self.model(update_noise, f_batch)
-        diff = target_noise.squeeze(-1) + r_batch.unsqueeze(-1) - predict
-        diff = diff.pow(2).mean(-1)
-        if self.fg_lambda:
-            fg_lambda = (
-                self.fg_lambda / np.sqrt(len(self.buffer))
-                if self.fg_decay
-                else self.fg_lambda
-            )
-            fg_term = self.model(update_noise, s_batch)
-            fg_term = fg_term.max(dim=-1)[0]
-            loss = (diff - fg_lambda * fg_term).mean()
+        if self.model_type == "epinet" and self.class_num > 1:
+            loss = F.cross_entropy(predict.squeeze(1), r_batch.to(torch.int64))
         else:
-            loss = diff.mean()
+            diff = target_noise.squeeze(-1) + r_batch.unsqueeze(-1) - predict
+            diff = diff.pow(2).mean(-1)
+            if self.fg_lambda:
+                fg_lambda = (
+                    self.fg_lambda / np.sqrt(len(self.buffer))
+                    if self.fg_decay
+                    else self.fg_lambda
+                )
+                fg_term = self.model(update_noise, s_batch)
+                fg_term = fg_term.max(dim=-1)[0]
+                loss = (diff - fg_lambda * fg_term).mean()
+            else:
+                loss = diff.mean()
 
         for param_group in self.optimizer.param_groups:
             param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)

@@ -95,6 +95,8 @@ param = {
         **based_param,
         "action_noise": "gs",
         "update_noise": "gs",
+        "class_num": 2 if args.game.endswith("v3") else 1,
+        "NpS": 1 if args.game.endswith("v3") else args.NpS,
     },
     "Ensemble": {
         **based_param,
