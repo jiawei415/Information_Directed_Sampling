@@ -46,7 +46,7 @@ class MLP(nn.Module):
         if self.output_dim == 1:
             return logits.detach().cpu().numpy()
         probs = F.softmax(logits / self.temperature, -1)
-        out = _random_argmax(probs)
+        out = probs[:, 1]
         return out.detach().cpu().numpy()
 
 
@@ -76,6 +76,7 @@ class SyntheticNonlinModel:
         self.set_feature()
 
         # reward
+        self.reward_version = reward_version
         if reward_version == "v1":
             self.reward_fn = getattr(self, "reward_fn1")
             theta = sigma * self.prior_random.standard_normal(
@@ -153,17 +154,24 @@ class SyntheticNonlinModel:
 
     def reward_fn3(self, feature):
         prob = self.reward_model(feature)
-        reward = self.prior_random.binomial(1, prob)
-        return reward
+        # reward = self.prior_random.binomial(1, prob)
+        return prob
 
     def reward_fn4(self, feature):
         reward = self.reward_model(feature)
         return reward
 
     def reward(self, arm):
-        reward = self.sub_rewards[arm]
-        noise = self.reward_random.standard_normal(size=1, dtype=np.float32) * self.eta
-        return reward + noise
+        if self.reward_version == "v3":
+            prob = self.sub_rewards[arm]
+            reward = self.reward_random.binomial(1, prob, size=1)
+            return reward
+        else:
+            reward = self.sub_rewards[arm]
+            noise = (
+                self.reward_random.standard_normal(size=1, dtype=np.float32) * self.eta
+            )
+            return reward + noise
 
     def regret(self, arm):
         expect_reward = self.sub_rewards[arm]
