@@ -256,7 +256,9 @@ class HyperSolution:
 
         predict = self.model(update_noise, f_batch)
         if self.model_type == "epinet" and self.class_num > 1:
-            loss = F.cross_entropy(predict.squeeze(1), r_batch.to(torch.int64))
+            predict = predict.view(-1, self.class_num)
+            r_batch = r_batch.repeat(self.NpS).to(torch.int64)
+            loss = F.cross_entropy(predict, r_batch)
         else:
             diff = target_noise.squeeze(-1) + r_batch.unsqueeze(-1) - predict
             diff = diff.pow(2).mean(-1)

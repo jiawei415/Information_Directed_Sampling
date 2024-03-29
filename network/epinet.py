@@ -27,7 +27,7 @@ class EnsemblePrior(nn.Module):
         out_features: int,
         device: Optional[Union[str, int, torch.device]],
         ensemble_num: int,
-        ensemble_sizes: Sequence[int] = [5],
+        ensemble_sizes: Sequence[int] = [5, 5],
     ):
         super().__init__()
         self.basedmodel = nn.ModuleList(
@@ -138,7 +138,7 @@ class EpiNet(nn.Module):
             in_features,
             based_in_feature,
             class_num,
-            [15],
+            [15, 15],
             prior_scale,
             posterior_scale,
             device=device,
