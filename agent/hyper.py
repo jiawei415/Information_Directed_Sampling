@@ -149,6 +149,7 @@ class HyperMAB:
         update_noise="gs",
         buffer_noise="sp",
         buffer_size=None,
+        out_bias=True,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -170,6 +171,7 @@ class HyperMAB:
             update_noise=update_noise,
             buffer_noise=buffer_noise,
             model_type="hyper",
+            out_bias=out_bias,
         )
 
         log_interval = T // 1000
@@ -287,6 +289,7 @@ class HyperMAB:
         update_noise="oh",
         buffer_noise="gs",
         buffer_size=None,
+        out_bias=True,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -308,6 +311,7 @@ class HyperMAB:
             update_noise=update_noise,
             buffer_noise=buffer_noise,
             model_type="ensemble",
+            out_bias=out_bias,
         )
 
         log_interval = T // 1000

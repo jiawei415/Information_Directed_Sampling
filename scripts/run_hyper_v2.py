@@ -50,6 +50,7 @@ def get_args():
     parser.add_argument("--update-num", type=int, default=1)
     parser.add_argument("--update-freq", type=int, default=4)
     parser.add_argument("--prior-scale", type=float, default=5.0)
+    parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=3)
@@ -90,6 +91,7 @@ param = {
         **based_param,
         "action_noise": args.action_noise,
         "update_noise": args.update_noise,
+        "out_bias": args.out_bias,
     },
     "EpiNet": {
         **based_param,
@@ -102,6 +104,7 @@ param = {
         "action_noise": "oh",
         "update_noise": "oh",
         "buffer_noise": "gs",
+        "out_bias": args.out_bias,
     },
     "LMCTS": {**based_param},
 }

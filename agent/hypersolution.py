@@ -110,6 +110,7 @@ class HyperSolution:
         action_noise: str = "sgs",
         update_noise: str = "pn",
         model_type: str = "hyper",
+        out_bias: bool = True,
         reset: bool = False,
     ):
         self.noise_dim = noise_dim
@@ -134,6 +135,7 @@ class HyperSolution:
         self.buffer_noise = buffer_noise
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model_type = model_type
+        self.out_bias = out_bias
 
         self.init_model_optimizer()
         self.init_buffer()
@@ -155,12 +157,13 @@ class HyperSolution:
         }
         if self.model_type == "hyper":
             Net = HyperNet
-            model_param.update({"hyper_bias": True})
+            model_param.update({"hyper_bias": self.out_bias})
         elif self.model_type == "epinet":
             model_param.update({"class_num": self.class_num})
             Net = EpiNet
         elif self.model_type == "ensemble":
             Net = EnsembleNet
+            model_param.update({"out_bias": self.out_bias})
         else:
             raise NotImplementedError
         self.model = Net(**model_param).to(self.device)
