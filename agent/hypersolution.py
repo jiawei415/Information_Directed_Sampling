@@ -34,6 +34,8 @@ class ReplayBuffer:
             self.gen_noise = partial(sample_buffer_noise, "Sphere", **args)
         elif noise_type == "pn":
             self.gen_noise = partial(sample_buffer_noise, "UnifCube", **args)
+        elif noise_type == "pm":
+            self.gen_noise = partial(sample_buffer_noise, "PMCoord", **args)
         elif noise_type == "oh":
             self.gen_noise = partial(sample_buffer_noise, "OH", **args)
         elif noise_type == "sps":
