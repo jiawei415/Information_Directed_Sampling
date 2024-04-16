@@ -39,7 +39,7 @@ def get_args():
     parser.add_argument("--action-noise", type=str, default="pm")
     parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--buffer-size", type=int, default=None)
+    parser.add_argument("--buffer-size", type=int, default=1000000)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--update-start", type=int, default=32)
     parser.add_argument("--update-num", type=int, default=1)

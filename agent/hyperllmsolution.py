@@ -1,4 +1,3 @@
-from typing import Sequence
 from functools import partial
 from pprint import pprint
 import sys
@@ -21,70 +20,93 @@ def _random_argmax(vals, scale=1e-7):
 
 
 class ReplayBuffer:
-    def __init__(self, buffer_size, buffer_shape, noise_type="sp", sample_size=1):
-        buffer_size = buffer_size * sample_size
+    def __init__(self, buffer_size, buffer_shape, noise_type="sp"):
         self.buffers = {
             key: np.empty([buffer_size, *shape], dtype=np.float32)
             for key, shape in buffer_shape.items()
         }
         self.buffer_size = buffer_size
         self.noise_dim = buffer_shape["z"][-1]
-        self.sample_size = sample_size
-        self.sample_num = 0
+        self.current_size = 0
+        self.point = 0
         self.set_buffer_noise(noise_type)
 
     def set_buffer_noise(self, noise_type):
         args = {"M": self.noise_dim}
         if noise_type == "gs":
-            self.gen_noise = partial(sample_buffer_noise, "Gaussian", **args)
+            self.gen_noise = partial(sample_action_noise, "Gaussian", **args)
         elif noise_type == "sp":
-            self.gen_noise = partial(sample_buffer_noise, "Sphere", **args)
+            self.gen_noise = partial(sample_action_noise, "Sphere", **args)
         elif noise_type == "pn":
-            self.gen_noise = partial(sample_buffer_noise, "UnifCube", **args)
+            self.gen_noise = partial(sample_action_noise, "UnifCube", **args)
         elif noise_type == "pm":
-            self.gen_noise = partial(sample_buffer_noise, "PMCoord", **args)
+            self.gen_noise = partial(sample_action_noise, "PMCoord", **args)
         elif noise_type == "oh":
-            self.gen_noise = partial(sample_buffer_noise, "OH", **args)
+            self.gen_noise = partial(sample_action_noise, "OH", **args)
         elif noise_type == "sps":
-            self.gen_noise = partial(sample_buffer_noise, "Sparse", **args)
+            self.gen_noise = partial(sample_action_noise, "Sparse", **args)
         elif noise_type == "spc":
-            self.gen_noise = partial(sample_buffer_noise, "SparseConsistent", **args)
+            self.gen_noise = partial(sample_action_noise, "SparseConsistent", **args)
 
     def __len__(self):
-        return self.sample_num
+        return self.current_size
 
     def _sample(self, index):
-        input_ids = self.buffers["input_ids"][: self.sample_num][index]
-        attention_mask = self.buffers["attention_mask"][: self.sample_num][index]
-        a_data = self.buffers["a"][: self.sample_num][index]
-        r_data = self.buffers["r"][: self.sample_num][index]
-        z_data = self.buffers["z"][: self.sample_num][index]
+        input_ids = self.buffers["input_ids"][index]
+        attention_mask = self.buffers["attention_mask"][index]
+        a_data = self.buffers["a"][index]
+        r_data = self.buffers["r"][index]
+        z_data = self.buffers["z"][index]
         return input_ids, attention_mask, a_data, r_data, z_data
 
     def reset(self):
-        self.sample_num = 0
+        self.current_size = 0
 
     def put(self, transition):
+        batch_size = len(transition["r"])
+        idx = self._get_ordered_storage_idx(batch_size)
         for k, v in transition.items():
-            self.buffers[k][self.sample_num : self.sample_num + self.sample_size] = v
-        z = self.gen_noise()
-        self.buffers["z"][self.sample_num] = z
-        self.sample_num += self.sample_size
+            self.buffers[k][idx] = v
+        z = self.gen_noise(dim=batch_size) / np.sqrt(self.noise_dim)
+        self.buffers["z"][idx] = z
 
     def get(self, shuffle=True):
         # get all data in buffer
-        index = list(range(self.sample_num))
+        index = list(range(self.current_size))
         if shuffle:
             np.random.shuffle(index)
         return self._sample(index)
 
     def sample(self, n):
         # get n data in buffer
-        index = np.random.randint(low=0, high=self.sample_num, size=n)
+        index = np.random.randint(low=0, high=self.current_size, size=n)
         return self._sample(index)
 
     def sample_all(self):
-        return self._sample(range(self.sample_num))
+        return self._sample(range(self.current_size))
+
+    # if full, insert in order
+    def _get_ordered_storage_idx(self, inc=None):
+        inc = inc or 1  # size increment
+        assert inc <= self.buffer_size, "Batch committed to replay is too large!"
+
+        if self.point + inc <= self.buffer_size - 1:
+            idx = np.arange(self.point, self.point + inc)
+        else:
+            overflow = inc - (self.buffer_size - self.point)
+            idx_a = np.arange(self.point, self.buffer_size)
+            idx_b = np.arange(0, overflow)
+            idx = np.concatenate([idx_a, idx_b])
+
+        self.point = (self.point + inc) % self.buffer_size
+
+        # update replay size, don't add when it already surpass self.size
+        if self.current_size < self.buffer_size:
+            self.current_size = min(self.buffer_size, self.current_size + inc)
+
+        if inc == 1:
+            idx = idx[0]
+        return idx
 
 
 class HyperLLMSolution:
@@ -158,8 +180,7 @@ class HyperLLMSolution:
         }
         self.model = HyperLLM(**model_param).to(self.device)
         param_dict = {"Trainable": [], "Frozen": []}
-        trainable_param_size = 0
-        frozen_param_size = 0
+        trainable_param_size, frozen_param_size = 0, 0
         for name, param in self.model.named_parameters():
             # if "transformer" not in name: continue
             if param.requires_grad:
@@ -208,9 +229,7 @@ class HyperLLMSolution:
             "r": (),
             "z": (self.noise_dim,),
         }
-        self.buffer = ReplayBuffer(
-            self.buffer_size, buffer_shape, self.buffer_noise, self.n_action
-        )
+        self.buffer = ReplayBuffer(self.buffer_size, buffer_shape, self.buffer_noise)
 
     def update(self):
         input_ids, attention_mask, a_batch, r_batch, z_batch = self.buffer.sample(
