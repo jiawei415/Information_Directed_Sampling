@@ -80,9 +80,10 @@ class HyperLinear(nn.Module):
         self.hyper_weight = HyperLayer(
             **hyperlayer_params, trainable=True, weight_init="xavier_normal"
         )
-        self.prior_weight = HyperLayer(
-            **hyperlayer_params, trainable=False, weight_init="sDB"
-        )
+        if prior_scale > 0:
+            self.prior_weight = HyperLayer(
+                **hyperlayer_params, trainable=False, weight_init="sDB"
+            )
 
         self.hidden_dim = out_features
         self.action_dim = action_dim
@@ -90,51 +91,20 @@ class HyperLinear(nn.Module):
         self.posterior_scale = posterior_scale
 
     def forward(self, z, x, prior_x):
+        # x: [batch_size, seq_len, hidden_dim]
         theta = self.hyper_weight(z)
-        prior_theta = self.prior_weight(z)
-        if len(theta.shape) == 2:
-            theta = theta.view(-1, self.action_dim, self.hidden_dim)
-            prior_theta = prior_theta.view(-1, self.action_dim, self.hidden_dim)
-        elif len(theta.shape) == 3:
-            theta = theta.view(theta.shape[0], -1, self.action_dim, self.hidden_dim)
+        theta = theta.view(theta.shape[0], -1, self.action_dim, self.hidden_dim)
+        out = torch.einsum("bnad,bsd -> bnsa", theta, x)
+
+        if self.prior_scale > 0:
+            prior_theta = self.prior_weight(z)
             prior_theta = prior_theta.view(
                 prior_theta.shape[0], -1, self.action_dim, self.hidden_dim
             )
+            prior_out = torch.einsum("bnad,bsd -> bnsa", prior_theta, prior_x)
 
-        if len(x.shape) > 2:
-            # compute feel-good term
-            out = torch.einsum("bd,bad -> ba", theta, x)
-            prior_out = torch.einsum("bd,bad -> ba", prior_theta, prior_x)
-        elif x.shape[0] != z.shape[0]:
-            # compute action value for one action set
-            theta = theta.squeeze(0)
-            prior_theta = prior_theta.squeeze(0)
-            out = torch.mm(theta, x.T).squeeze(0)
-            prior_out = torch.mm(prior_theta, prior_x.T).squeeze(0)
-        elif x.shape == theta.shape:
-            out = torch.sum(x * theta, -1)
-            prior_out = torch.sum(prior_x * prior_theta, -1)
-        elif len(theta.shape) == 4:
-            out = torch.einsum("bnad,bd -> bna", theta, x)
-            prior_out = torch.einsum("bnad,bd -> bna", prior_theta, prior_x)
-        else:
-            # compute predict reward in batch
-            out = torch.bmm(theta, x.unsqueeze(-1)).squeeze(-1)
-            prior_out = torch.bmm(prior_theta, prior_x.unsqueeze(-1)).squeeze(-1)
-
-        out = self.posterior_scale * out + self.prior_scale * prior_out
+            out = self.posterior_scale * out + self.prior_scale * prior_out
         return out
-
-    def regularization(self, z):
-        theta = self.hyper_weight(z)
-        reg_loss = theta.pow(2).mean()
-        return reg_loss
-
-    def get_thetas(self, z):
-        theta = self.hyper_weight(z)
-        prior_theta = self.prior_weight(z)
-        theta = self.posterior_scale * theta + self.prior_scale * prior_theta
-        return theta
 
 
 class HyperLLM(nn.Module):
@@ -203,6 +173,8 @@ class HyperLLM(nn.Module):
         else:
             raise ValueError(f"Unknown head_name: {head_name}")
 
+        self.num_padding_at_beginning = 0
+        self.PAD_ID = 50256 # GPT2
         self.fine_tune = fine_tune
         self.head_name = head_name
         self.device = device
@@ -215,14 +187,28 @@ class HyperLLM(nn.Module):
         transformer_out = self.transformer_model.transformer(
             input_ids=input_ids, attention_mask=attention_mask
         )
-        logits = transformer_out.last_hidden_state[:, -1, :]
+        logits = transformer_out.last_hidden_state
         if not self.fine_tune:
             logits = logits.detach()
         if self.head_name == "linear":
             out = self.out(logits)
-        else:
+            out = out.unsqueeze(1)
+        elif self.head_name == "hyper":
             out = self.out(noise, logits, logits)
-        return out
+        # out: [batch_size, NpS, seq_len, action_num]
+        out = out.permute(0, 2, 1, 3) # [batch_size, seq_len, NpS, action_num]
+        bs, seq_len, NpS, action_num = out.shape
+        values = torch.zeros(bs, NpS, action_num, device=self.device)
+        for i in range(bs):
+            input_id = input_ids[i]
+            c_inds = (input_id == self.PAD_ID).nonzero()
+            # assert self.PAD_ID == 0
+            c_ind = c_inds[self.num_padding_at_beginning].item() if len(
+                c_inds
+            ) > self.num_padding_at_beginning else seq_len
+            # Fill the values tensor with the end scores
+            values[i] = out[i][c_ind - 1]
+        return values.squeeze(1)
 
 
 if __name__ == "__main__":

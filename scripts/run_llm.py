@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--game", type=str, default="hatespeech")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=1024)
-    parser.add_argument("--n-arms", type=int, default=2)
+    parser.add_argument("--n-arms", type=int, default=4)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
     parser.add_argument("--method", type=str, default="LLM")
@@ -41,7 +41,7 @@ def get_args():
     parser.add_argument("--buffer-noise", type=str, default="sp")
     parser.add_argument("--buffer-size", type=int, default=1000000)
     parser.add_argument("--batch-size", type=int, default=2)
-    parser.add_argument("--update-start", type=int, default=32)
+    parser.add_argument("--update-start", type=int, default=2)
     parser.add_argument("--update-num", type=int, default=1)
     parser.add_argument("--update-freq", type=int, default=1)
     parser.add_argument("--prior-scale", type=float, default=5.0)
@@ -53,6 +53,7 @@ def get_args():
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
+    parser.add_argument("--log-interval", type=int, default=10)
     parser.add_argument("--log-dir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
     return args
@@ -66,6 +67,7 @@ os.makedirs(path, exist_ok=True)
 
 param = {
     "LLM": {
+        "log_interval": args.log_interval,
         "noise_dim": args.noise_dim,
         "lr": args.lr,
         "based_weight_decay": args.based_weight_decay,

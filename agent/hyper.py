@@ -134,6 +134,7 @@ class HyperMAB:
         self,
         T,
         logger,
+        log_interval=10,
         noise_dim=2,
         lr=0.01,
         based_weight_decay=0.0,
@@ -181,7 +182,6 @@ class HyperMAB:
             out_bias=out_bias,
         )
 
-        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
             T, dtype=np.float32
         )
