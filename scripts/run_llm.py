@@ -46,7 +46,7 @@ def get_args():
     parser.add_argument("--update-freq", type=int, default=1)
     parser.add_argument("--prior-scale", type=float, default=5.0)
     parser.add_argument("--model-type", type=str, default="hyper")
-    parser.add_argument("--llm-name", type=str, default="gpt2")
+    parser.add_argument("--llm-name", type=str, default="gpt2", choices=["gpt2", "pythia14m"])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
     parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
@@ -98,7 +98,7 @@ game_config = {
     "hatespeech": {
         "n_features": args.n_features,
         "n_arms": args.n_arms,
-        "T": args.time_period,
+        "llm_name": args.llm_name,
     },
 }
 
@@ -132,6 +132,7 @@ check_time = False
 labels, colors = utils.labelColor(methods)
 expe_params = {
     "n_expe": args.n_expe,
+    "T": args.time_period,
     "methods": methods,
     "param_dic": param,
     "labels": labels,

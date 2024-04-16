@@ -538,6 +538,7 @@ def Textual_expe(
     colors,
     path,
     problem="hatespeech",
+    llm_name="gpt2",
     doplot=False,
     seed=2022,
     **kwargs,
@@ -561,7 +562,7 @@ def Textual_expe(
     from agent.hyper import HyperMAB
 
     if problem == "hatespeech":
-        models = [HyperMAB(HateSpeechEnv(n_features, n_arms)) for _ in range(n_expe)]
+        models = [HyperMAB(HateSpeechEnv(n_features, n_arms, llm_name=llm_name)) for _ in range(n_expe)]
         title = f"HateSpeech  - n_arms: {n_arms} - n_features: {n_features}"
     else:
         raise NotImplementedError

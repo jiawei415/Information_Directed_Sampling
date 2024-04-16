@@ -5,11 +5,11 @@ from transformers import AutoTokenizer
 
 
 class HateSpeechDataset(Dataset):
-    def __init__(self, dataset="hatespeech", tokenizer="gpt2", max_length=2024):
+    def __init__(self, dataset="hatespeech", llm_name="gpt2", max_length=2024):
         dataset_path = f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{dataset}"
         self.dataset = load_from_disk(dataset_path)["train"]
         tokenizer_path = (
-            f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/tokenizer_{tokenizer}"
+            f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{llm_name}/tokenizer"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
         self.tokenizer.pad_token = self.tokenizer.unk_token
@@ -47,11 +47,12 @@ class HateSpeechEnv:
         n_actions=32,
         eta=0.1,
         sigma=1,
+        llm_name="gpt2",
     ):
         reward_random_state = np.random.randint(1, 312414)
         self.reward_random = np.random.default_rng(reward_random_state)
 
-        dataset = HateSpeechDataset(max_length=n_features)
+        dataset = HateSpeechDataset(llm_name=llm_name, max_length=n_features)
         self.all_actions = len(dataset)
 
         self.n_actions = n_actions

@@ -1,12 +1,9 @@
-from typing import Sequence, Union
-
 import numpy as np
 import torch
 import torch.nn as nn
 import loralib
 
-from .trajectory_gpt2 import GPT2Model, GPT2LMHeadModel, GPT2Config
-from .trajectory_gpt2_LoRA import GPT2Model_LoRA, GPT2LMHeadModel_LoRA, GPT2Config_LoRA
+from transformers import GPTNeoXForCausalLM, GPT2Model
 
 from .hypernet import HyperLayer
 from .ensemble import mlp
@@ -20,7 +17,7 @@ class LinearLayer(torch.nn.Module):
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         out_bias: bool = True,
-        device: Union[str, int, torch.device] = "cpu",
+        device: str = "cpu",
     ):
         super().__init__()
         self.basedmodel = nn.Linear(in_features, out_features, out_bias)
@@ -52,7 +49,7 @@ class LinearLayer(torch.nn.Module):
         if self.prior_scale > 0:
             prior_out = self.priormodel(x)
             out = self.posterior_scale * out + self.prior_scale * prior_out
-        return out
+        return out.unsqueeze(1)
 
 
 class HyperLinear(nn.Module):
@@ -119,31 +116,22 @@ class HyperLLM(nn.Module):
         llm_name: str = "gpt2",
         use_lora: bool = False,
         fine_tune: bool = False,
-        device: Union[str, int, torch.device] = "cpu",
+        device: str = "cpu",
     ):
         super().__init__()
-        base_path = "/apdcephfs/share_1563664/ztjiaweixu/huggingface"
-        if use_lora:
-            name_or_path = f"{base_path}/pretrain_{llm_name}_lora"
-            config = GPT2Config_LoRA.from_pretrained(name_or_path)
-            self.transformer_model = GPT2LMHeadModel_LoRA.from_pretrained(
-                name_or_path, config=config
-            )
-            loralib.mark_only_lora_as_trainable(
-                self.transformer_model, bias="lora_only"
-            )
-        else:
-            name_or_path = f"{base_path}/pretrain_{llm_name}"
-            config = GPT2Config.from_pretrained(name_or_path)
-            self.transformer_model = GPT2LMHeadModel.from_pretrained(
-                name_or_path,
-                config=config,
-            )
+        model_path = f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{llm_name}/model"
+        if llm_name == "gpt2":
+            self.transformer_model = GPT2Model.from_pretrained(model_path)
+            self.PAD_ID = 50256
+        elif llm_name == "pythia14m":
+            self.transformer_model = GPTNeoXForCausalLM.from_pretrained(model_path).gpt_neox
+            self.PAD_ID = 0
+
         if not fine_tune:
             for param in self.transformer_model.parameters():
                 param.requires_grad = False
 
-        feature_dim = config.n_embd
+        feature_dim = self.transformer_model.config.hidden_size
         if head_name == "linear":
             self.out = LinearLayer(
                 feature_dim,
@@ -174,7 +162,6 @@ class HyperLLM(nn.Module):
             raise ValueError(f"Unknown head_name: {head_name}")
 
         self.num_padding_at_beginning = 0
-        self.PAD_ID = 50256 # GPT2
         self.fine_tune = fine_tune
         self.head_name = head_name
         self.device = device
@@ -184,7 +171,7 @@ class HyperLLM(nn.Module):
             noise = torch.as_tensor(noise, device=self.device)
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
-        transformer_out = self.transformer_model.transformer(
+        transformer_out = self.transformer_model(
             input_ids=input_ids, attention_mask=attention_mask
         )
         logits = transformer_out.last_hidden_state
@@ -192,7 +179,6 @@ class HyperLLM(nn.Module):
             logits = logits.detach()
         if self.head_name == "linear":
             out = self.out(logits)
-            out = out.unsqueeze(1)
         elif self.head_name == "hyper":
             out = self.out(noise, logits, logits)
         # out: [batch_size, NpS, seq_len, action_num]
