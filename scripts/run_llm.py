@@ -45,7 +45,7 @@ def get_args():
     parser.add_argument("--update-num", type=int, default=1)
     parser.add_argument("--update-freq", type=int, default=1)
     parser.add_argument("--prior-scale", type=float, default=5.0)
-    parser.add_argument("--model-type", type=str, default="hyper")
+    parser.add_argument("--model-type", type=str, default="hyper", choices=["linear", "ensemble", "hyper"])
     parser.add_argument("--llm-name", type=str, default="pythia14m", choices=["gpt2", "pythia14m"])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
@@ -66,6 +66,7 @@ path = os.path.expanduser(os.path.join(args.log_dir, game, dir))
 os.makedirs(path, exist_ok=True)
 
 noise_param = {
+    "linear": {},
     "hyper": {
         "action_noise": args.action_noise,
         "update_noise": args.update_noise,

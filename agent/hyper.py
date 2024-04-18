@@ -201,12 +201,17 @@ class HyperMAB:
             }
             model.put(transitions)
             # update hypermodel
+            update_results = {}
             if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
-                    model.update()
+                    update_results = model.update()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
+                for key, value in update_results.items():
+                    logger.record(key, value)
                 logger.dump(t)
         return reward, expected_regret
 

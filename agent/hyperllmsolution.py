@@ -235,7 +235,8 @@ class HyperLLMSolution:
         input_ids, attention_mask, a_batch, r_batch, z_batch = self.buffer.sample(
             self.batch_size
         )
-        self.learn(input_ids, attention_mask, a_batch, r_batch, z_batch)
+        results = self.learn(input_ids, attention_mask, a_batch, r_batch, z_batch)
+        return results
 
     def put(self, transition):
         self.buffer.put(transition)
@@ -275,6 +276,10 @@ class HyperLLMSolution:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
+        results = {
+            "loss": loss.item()
+        }
+        return results
 
     def predict(self, input_ids, attention_mask, num=1):
         action_noise = self.gen_action_noise(dim=num)
