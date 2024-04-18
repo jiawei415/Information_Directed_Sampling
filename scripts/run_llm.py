@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--game", type=str, default="hatespeech")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=1024)
-    parser.add_argument("--n-arms", type=int, default=4)
+    parser.add_argument("--n-arms", type=int, default=5)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
     parser.add_argument("--method", type=str, default="LLM")
@@ -46,7 +46,7 @@ def get_args():
     parser.add_argument("--update-freq", type=int, default=1)
     parser.add_argument("--prior-scale", type=float, default=5.0)
     parser.add_argument("--model-type", type=str, default="hyper")
-    parser.add_argument("--llm-name", type=str, default="gpt2", choices=["gpt2", "pythia14m"])
+    parser.add_argument("--llm-name", type=str, default="pythia14m", choices=["gpt2", "pythia14m"])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
     parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
@@ -64,6 +64,19 @@ game = args.game
 dir = f"{game.lower()}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
 path = os.path.expanduser(os.path.join(args.log_dir, game, dir))
 os.makedirs(path, exist_ok=True)
+
+noise_param = {
+    "hyper": {
+        "action_noise": args.action_noise,
+        "update_noise": args.update_noise,
+        "buffer_noise": args.buffer_noise,
+    },
+    "ensemble": {
+        "action_noise": "oh",
+        "update_noise": "oh",
+        "buffer_noise": "gs",
+    }
+}
 
 param = {
     "LLM": {
@@ -89,6 +102,7 @@ param = {
         "use_lora": args.use_lora,
         "fine_tune": args.fine_tune,
         "out_bias": args.out_bias,
+        **noise_param[args.model_type],
     }
 }
 

@@ -1,4 +1,6 @@
 import numpy as np
+
+from itertools import cycle
 from torch.utils.data import Dataset, DataLoader
 from datasets import load_dataset, load_from_disk
 from transformers import AutoTokenizer
@@ -59,8 +61,8 @@ class HateSpeechEnv:
         self.n_features = n_features
         self.sub_actions = n_actions
 
-        self.dataloader = DataLoader(dataset, batch_size=n_actions, shuffle=True)
-        self.dataloader = iter(self.dataloader)
+        self.dataloader = DataLoader(dataset, batch_size=n_actions, shuffle=True, drop_last=True)
+        self.dataloader = cycle(iter(self.dataloader))
 
         self.eta = eta
         self.alg_prior_sigma = sigma

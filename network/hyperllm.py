@@ -16,13 +16,13 @@ class LinearLayer(torch.nn.Module):
         out_features: int,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
-        out_bias: bool = True,
+        use_bias: bool = True,
         device: str = "cpu",
     ):
         super().__init__()
-        self.basedmodel = nn.Linear(in_features, out_features, out_bias)
+        self.basedmodel = nn.Linear(in_features, out_features, use_bias)
         if prior_scale > 0:
-            self.priormodel = nn.Linear(in_features, out_features, out_bias)
+            self.priormodel = nn.Linear(in_features, out_features, use_bias)
             for param in self.priormodel.parameters():
                 param.requires_grad = False
         self.prior_scale = prior_scale
@@ -86,8 +86,11 @@ class HyperLinear(nn.Module):
         self.action_dim = action_dim
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
+        self.device = device
 
     def forward(self, z, x, prior_x):
+        if isinstance(z, np.ndarray):
+            z = torch.as_tensor(z, device=self.device)
         # x: [batch_size, seq_len, hidden_dim]
         theta = self.hyper_weight(z)
         theta = theta.view(theta.shape[0], -1, self.action_dim, self.hidden_dim)
@@ -101,6 +104,67 @@ class HyperLinear(nn.Module):
             prior_out = torch.einsum("bnad,bsd -> bnsa", prior_theta, prior_x)
 
             out = self.posterior_scale * out + self.prior_scale * prior_out
+        return out
+
+
+class EnsembleLayer(nn.Module):
+    def __init__(
+        self,
+        in_features,
+        out_features,
+        ensemble_size: int = 2,
+        prior_scale: float = 1.0,
+        posterior_scale: float = 1.0,
+        use_bias: bool = True,
+        device: str = "cpu",
+    ):
+        super().__init__()
+        self.basedmodel = nn.ModuleList(
+            [
+                mlp(in_features, out_features, [], use_bias)
+                for _ in range(ensemble_size)
+            ]
+        )
+        if prior_scale > 0:
+            self.priormodel = nn.ModuleList(
+                [
+                    mlp(in_features, out_features, [], use_bias)
+                    for _ in range(ensemble_size)
+                ]
+            )
+            for model in self.priormodel:
+                for param in model.parameters():
+                    param.requires_grad = False
+
+        self.ensemble_size = ensemble_size
+        self.prior_scale = prior_scale
+        self.posterior_scale = posterior_scale
+        self.device = device
+
+    def forward(self, z, logits, prior_logits):
+        if z.shape[0] == 1:
+            ensemble_index = int(np.where(z == 1)[1])
+            out = self.basedmodel[ensemble_index](logits)
+            if self.prior_scale > 0:
+                prior_out = self.priormodel[ensemble_index](prior_logits)
+                out = self.posterior_scale * out + self.prior_scale * prior_out
+        elif z.shape[0] == logits.shape[0] and len(z.shape) == 2:
+            out = [self.basedmodel[int(np.where(z_ == 1)[0])](logits[i]) for i, z_ in enumerate(z)]
+            out = torch.stack(out)
+            if self.prior_scale > 0:
+                prior_out = [self.priormodel[int(np.where(z_ == 1)[0])](prior_logits[i]) for i, z_ in enumerate(z)]
+                prior_out = torch.stack(prior_out)
+                out = self.posterior_scale * out + self.prior_scale * prior_out
+            out = out.unsqueeze(1)
+        else:
+            out = [self.basedmodel[k](logits) for k in range(self.ensemble_size)]
+            out = torch.stack(out, dim=1)
+            if self.prior_scale > 0:
+                prior_out = [
+                    self.priormodel[k](prior_logits) for k in range(self.ensemble_size)
+                ]
+                prior_out = torch.stack(prior_out, dim=1)
+                out = self.posterior_scale * out + self.prior_scale * prior_out
         return out
 
 
@@ -138,7 +202,7 @@ class HyperLLM(nn.Module):
                 action_num,
                 prior_scale=prior_scale,
                 posterior_scale=posterior_scale,
-                out_bias=out_bias,
+                use_bias=out_bias,
                 device=device,
             )
         elif head_name == "hyper":
@@ -152,11 +216,14 @@ class HyperLLM(nn.Module):
                 device=device,
             )
         elif head_name == "ensemble":
-            self.out = nn.ModuleList(
-                [
-                    mlp(feature_dim, action_num, noise_dim, out_bias)
-                    for _ in range(noise_dim)
-                ]
+            self.out = EnsembleLayer(
+                feature_dim,
+                action_num,
+                noise_dim,
+                prior_scale=prior_scale,
+                posterior_scale=posterior_scale,
+                use_bias=out_bias,
+                device=device,
             )
         else:
             raise ValueError(f"Unknown head_name: {head_name}")
@@ -167,8 +234,6 @@ class HyperLLM(nn.Module):
         self.device = device
 
     def forward(self, noise, input_ids, attention_mask):
-        if isinstance(noise, np.ndarray):
-            noise = torch.as_tensor(noise, device=self.device)
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
         transformer_out = self.transformer_model(
@@ -180,6 +245,8 @@ class HyperLLM(nn.Module):
         if self.head_name == "linear":
             out = self.out(logits)
         elif self.head_name == "hyper":
+            out = self.out(noise, logits, logits)
+        elif self.head_name == "ensemble":
             out = self.out(noise, logits, logits)
         # out: [batch_size, NpS, seq_len, action_num]
         out = out.permute(0, 2, 1, 3) # [batch_size, seq_len, NpS, action_num]
