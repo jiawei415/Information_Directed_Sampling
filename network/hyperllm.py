@@ -93,15 +93,15 @@ class HyperLinear(nn.Module):
             z = torch.as_tensor(z, device=self.device)
         # x: [batch_size, seq_len, hidden_dim]
         theta = self.hyper_weight(z)
-        theta = theta.view(theta.shape[0], -1, self.action_dim, self.hidden_dim)
-        out = torch.einsum("bnad,bsd -> bnsa", theta, x)
+        theta = theta.view(theta.shape[0], -1, self.hidden_dim, self.action_dim)
+        out = torch.einsum("bnda,bsd -> bnsa", theta, x)
 
         if self.prior_scale > 0:
             prior_theta = self.prior_weight(z)
             prior_theta = prior_theta.view(
-                prior_theta.shape[0], -1, self.action_dim, self.hidden_dim
+                prior_theta.shape[0], -1, self.hidden_dim, self.action_dim
             )
-            prior_out = torch.einsum("bnad,bsd -> bnsa", prior_theta, prior_x)
+            prior_out = torch.einsum("bnda,bsd -> bnsa", prior_theta, prior_x)
 
             out = self.posterior_scale * out + self.prior_scale * prior_out
         return out
