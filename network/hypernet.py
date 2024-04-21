@@ -86,7 +86,14 @@ class HyperLayer(nn.Module):
         elif self.weight_init == "xavier_normal":
             nn.init.xavier_normal_(self.weight, gain=1.0)
         else:
-            nn.init.kaiming_uniform_(self.weight, a=np.sqrt(5))
+            weight = [
+                nn.init.xavier_normal_(
+                    torch.zeros((self.action_dim, self.hidden_dim))
+                ).flatten()
+                for _ in range(self.in_features)
+            ]
+            self.weight = nn.Parameter(torch.stack(weight, dim=1))
+            # nn.init.kaiming_uniform_(self.weight, a=np.sqrt(5))
         # init bias
         if self.use_bias:
             if self.bias_init == "default":
