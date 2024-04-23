@@ -9,6 +9,7 @@ import torch
 import torch.nn.functional as F
 
 from utils import sample_action_noise, sample_update_noise, sample_buffer_noise
+
 from network import HyperLLM
 
 
@@ -276,9 +277,7 @@ class HyperLLMSolution:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        results = {
-            "loss": loss.item()
-        }
+        results = {"loss": loss.item()}
         return results
 
     def predict(self, input_ids, attention_mask, num=1):

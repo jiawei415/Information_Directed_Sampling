@@ -24,7 +24,7 @@ def get_args():
     # environment config
     parser.add_argument("--game", type=str, default="hatespeech")
     parser.add_argument("--time-period", type=int, default=1000)
-    parser.add_argument("--n-features", type=int, default=1024)
+    parser.add_argument("--n-features", type=int, default=512)
     parser.add_argument("--n-arms", type=int, default=5)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
@@ -39,14 +39,22 @@ def get_args():
     parser.add_argument("--action-noise", type=str, default="pm")
     parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--buffer-size", type=int, default=1000000)
+    parser.add_argument("--buffer-size", type=int, default=100000)
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--update-start", type=int, default=2)
     parser.add_argument("--update-num", type=int, default=1)
     parser.add_argument("--update-freq", type=int, default=1)
-    parser.add_argument("--prior-scale", type=float, default=5.0)
-    parser.add_argument("--model-type", type=str, default="hyper", choices=["linear", "ensemble", "hyper"])
-    parser.add_argument("--llm-name", type=str, default="pythia14m", choices=["gpt2", "pythia14m"])
+    parser.add_argument("--posterior-scale", type=float, default=0.1)
+    parser.add_argument("--prior-scale", type=float, default=0.1)
+    parser.add_argument(
+        "--model-type",
+        type=str,
+        default="hyper",
+        choices=["linear", "ensemble", "hyper"],
+    )
+    parser.add_argument(
+        "--llm-name", type=str, default="pythia14m", choices=["gpt2", "pythia14m"]
+    )
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
     parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
@@ -76,7 +84,7 @@ noise_param = {
         "action_noise": "oh",
         "update_noise": "oh",
         "buffer_noise": "gs",
-    }
+    },
 }
 
 param = {
@@ -92,6 +100,7 @@ param = {
         "update_num": args.update_num,
         "update_freq": args.update_freq,
         "batch_size": args.batch_size,
+        "posterior_scale": args.posterior_scale,
         "prior_scale": args.prior_scale,
         "NpS": args.NpS,
         "action_noise": args.action_noise,
