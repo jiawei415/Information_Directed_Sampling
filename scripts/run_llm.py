@@ -61,7 +61,7 @@ def get_args():
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
-    parser.add_argument("--log-interval", type=int, default=10)
+    parser.add_argument("--log-interval", type=int, default=1000)
     parser.add_argument("--log-dir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
     return args

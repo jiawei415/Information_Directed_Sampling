@@ -75,10 +75,10 @@ class HyperLinear(nn.Module):
             device=device,
         )
         self.hyper_weight = HyperLayer(
-            **hyperlayer_params, trainable=True, weight_init="xavier_normal"
+            **hyperlayer_params, trainable=True, weight_init="xavier_normal", bias_init="zeros-zeros"
         )
         self.prior_weight = HyperLayer(
-            **hyperlayer_params, trainable=False, weight_init="sDB"
+            **hyperlayer_params, trainable=False, weight_init="xavier_normal", bias_init="zeros-zeros"
         )
 
         self.hidden_dim = out_features
