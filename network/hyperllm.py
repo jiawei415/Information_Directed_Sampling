@@ -44,10 +44,10 @@ class LinearLayer(torch.nn.Module):
                 elif "weight" in name:
                     nn.init.xavier_normal_(param, gain=1.0)
 
-    def forward(self, x):
+    def forward(self, x, prior_x):
         out = self.basedmodel(x)
         if self.prior_scale > 0:
-            prior_out = self.priormodel(x)
+            prior_out = self.priormodel(prior_x)
             out = self.posterior_scale * out + self.prior_scale * prior_out
         return out.unsqueeze(1)
 
@@ -261,12 +261,13 @@ class HyperLLM(nn.Module):
         logits = transformer_out.last_hidden_state
         if not self.fine_tune:
             logits = logits.detach()
+        prior_logits = logits.detach()
         if self.head_name == "linear":
-            out = self.out(logits)
+            out = self.out(logits, prior_logits)
         elif self.head_name == "hyper":
-            out = self.out(noise, logits, logits)
+            out = self.out(noise, logits, prior_logits)
         elif self.head_name == "ensemble":
-            out = self.out(noise, logits, logits)
+            out = self.out(noise, logits, prior_logits)
         # out: [batch_size, NpS, seq_len, action_num]
         out = out.permute(0, 2, 1, 3)  # [batch_size, seq_len, NpS, action_num]
         bs, seq_len, NpS, action_num = out.shape
