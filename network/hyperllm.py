@@ -159,6 +159,7 @@ class EnsembleLayer(nn.Module):
             if self.prior_scale > 0:
                 prior_out = self.priormodel[ensemble_index](prior_logits)
                 out = self.posterior_scale * out + self.prior_scale * prior_out
+            out = out.unsqueeze(1)
         elif z.shape[0] == logits.shape[0] and len(z.shape) == 2:
             out = [
                 self.basedmodel[int(np.where(z_ == 1)[0])](logits[i])
