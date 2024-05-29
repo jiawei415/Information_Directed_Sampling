@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--game", type=str, default="hatespeech")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=512)
-    parser.add_argument("--n-arms", type=int, default=5)
+    parser.add_argument("--n-arms", type=int, default=1)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
     parser.add_argument("--method", type=str, default="LLM")
