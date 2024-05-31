@@ -188,6 +188,7 @@ class HyperMAB:
             T, dtype=np.float32
         )
         history_action = np.zeros((T, self.env.n_actions), dtype=np.int32)
+        true_action = np.zeros((T, self.env.n_actions), dtype=np.int32)
         for t in tqdm(range(T)):
             self.set_context()
             input_ids, attention_mask = self.env.get_feature()
@@ -196,6 +197,7 @@ class HyperMAB:
             regret_t = self.expect_regret(a_t, self.features)
             reward[t], expected_regret[t] = r_t.mean(), regret_t.mean()
             history_action[t] = a_t
+            true_action[t] = self.env.true_action
 
             transitions = {
                 "input_ids": input_ids,
@@ -212,6 +214,7 @@ class HyperMAB:
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("accuracy", np.sum(history_action[:t+1] == true_action[:t+1]) / ((t + 1) * self.env.n_actions))
                 logger.record("action", np.sum(history_action) / ((t + 1) * self.env.n_actions))
                 logger.record("reward", reward[t])
                 logger.record("regret", expected_regret[t])

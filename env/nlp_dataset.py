@@ -39,7 +39,8 @@ class HateSpeechDataset(Dataset):
         # Score is passed to simulate rewards during the learning loop
         reward = np.ones(2) * 0.5
         reward[1] = 1 if score <= 0.5 else -0.5
-        return input_ids, attention_mask, score, reward
+        action = 1 if score <= 0.5 else 0
+        return input_ids, attention_mask, score, reward, action
 
 
 class HateSpeechEnv:
@@ -71,10 +72,11 @@ class HateSpeechEnv:
 
     def set_context(self):
         data = next(self.dataloader)
-        input_ids, attention_mask, score, reward = data
+        input_ids, attention_mask, score, reward, true_action = data
         self.features = (input_ids, attention_mask)
         self.score = score
         self.sub_reward = reward
+        self.true_action = true_action
 
     def get_feature(self):
         input_ids, attention_mask = self.features
