@@ -264,7 +264,7 @@ class HyperLLMSolution:
             target = r_batch
         else:
             a_one_hot = F.one_hot(a_batch, self.action_num).to(
-                torch.float32
+                predict.dtype
             )  # (None, n_a)
             predict = torch.einsum("bka,ba->bk", predict, a_one_hot)  # (None, NpS)
             target = target_noise.squeeze(-1) + r_batch.unsqueeze(-1)

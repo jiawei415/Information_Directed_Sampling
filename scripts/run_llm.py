@@ -30,8 +30,8 @@ def get_args():
     # algorithm config
     parser.add_argument("--method", type=str, default="LLM")
     parser.add_argument("--noise-dim", type=int, default=4)
-    parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--based-weight-decay", type=float, default=0.0)
+    parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--based-weight-decay", type=float, default=0.01)
     parser.add_argument("--hyper-weight-decay", type=float, default=0.01)
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--z-coef", type=float, default=0.01)
@@ -53,10 +53,13 @@ def get_args():
         choices=["linear", "ensemble", "hyper"],
     )
     parser.add_argument(
-        "--llm-name", type=str, default="pythia14m", choices=["gpt2", "pythia14m"]
+        "--llm-name",
+        type=str,
+        default="gpt2",
+        choices=["gpt2", "gpt2-medium", "gpt2-large", "pythia14m"],
     )
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
-    parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
+    parser.add_argument("--fine-tune", type=int, default=1, choices=[0, 1])
     parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
     # other config
     parser.add_argument("--seed", type=int, default=2023)

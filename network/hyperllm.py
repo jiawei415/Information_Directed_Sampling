@@ -1,9 +1,11 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import loralib
+import loralib as lora
 
 from transformers import GPTNeoXForCausalLM, GPT2Model
+# from .trajectory_gpt2 import GPT2LMHeadModel, GPT2Config
+# from .trajectory_gpt2_LoRA import GPT2LMHeadModel_LoRA, GPT2Config_LoRA
 
 from .hypernet import HyperLayer
 from .ensemble import mlp
@@ -89,7 +91,7 @@ class HyperLinear(nn.Module):
 
     def forward(self, z, x, prior_x):
         if isinstance(z, np.ndarray):
-            z = torch.as_tensor(z, device=self.device)
+            z = torch.as_tensor(z, device=self.device, dtype=x.dtype)
         # x: [batch_size, seq_len, hidden_dim]
         theta = self.hyper_weight(z)
         theta = theta.view(theta.shape[0], -1, self.action_dim, self.hidden_dim)
@@ -202,7 +204,7 @@ class HyperLLM(nn.Module):
     ):
         super().__init__()
         model_path = f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{llm_name}/model"
-        if llm_name == "gpt2":
+        if "gpt2" in llm_name:
             self.transformer_model = GPT2Model.from_pretrained(model_path)
             self.PAD_ID = 50256
         elif llm_name == "pythia14m":
@@ -272,7 +274,7 @@ class HyperLLM(nn.Module):
         # out: [batch_size, NpS, seq_len, action_num]
         out = out.permute(0, 2, 1, 3)  # [batch_size, seq_len, NpS, action_num]
         bs, seq_len, NpS, action_num = out.shape
-        values = torch.zeros(bs, NpS, action_num, device=self.device)
+        values = torch.zeros(bs, NpS, action_num, dtype=out.dtype, device=self.device)
         for i in range(bs):
             input_id = input_ids[i]
             c_inds = (input_id == self.PAD_ID).nonzero()
