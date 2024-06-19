@@ -132,6 +132,7 @@ class HyperLLMSolution:
         update_noise: str = "pn",
         model_type: str = "hyper",
         llm_name: str = "gpt2",
+        use_pretrained: bool = True,
         use_lora: bool = False,
         fine_tune: bool = False,
         out_bias: bool = True,
@@ -155,6 +156,7 @@ class HyperLLMSolution:
         self.buffer_noise = buffer_noise
         self.model_type = model_type
         self.llm_name = llm_name
+        self.use_pretrained = use_pretrained
         self.use_lora = use_lora
         self.fine_tune = fine_tune
         self.out_bias = out_bias
@@ -174,6 +176,7 @@ class HyperLLMSolution:
             "posterior_scale": self.posterior_scale,
             "head_name": self.model_type,
             "llm_name": self.llm_name,
+            "use_pretrained": self.use_pretrained,
             "use_lora": self.use_lora,
             "fine_tune": self.fine_tune,
             "out_bias": self.out_bias,

@@ -3,10 +3,8 @@ import torch
 import torch.nn as nn
 import loralib as lora
 
-from transformers import GPTNeoXForCausalLM, GPT2Model
-# from .trajectory_gpt2 import GPT2LMHeadModel, GPT2Config
-# from .trajectory_gpt2_LoRA import GPT2LMHeadModel_LoRA, GPT2Config_LoRA
-
+from transformers import GPTNeoXForCausalLM, GPT2Model, GPT2Config
+from .trajectory_gpt2 import GPT2LMHeadModel
 from .hypernet import HyperLayer
 from .ensemble import mlp
 
@@ -198,20 +196,26 @@ class HyperLLM(nn.Module):
         out_bias: bool = True,
         head_name: str = "hyper",
         llm_name: str = "gpt2",
+        use_pretrained: bool = True,
         use_lora: bool = False,
         fine_tune: bool = False,
         device: str = "cpu",
     ):
         super().__init__()
         model_path = f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{llm_name}/model"
-        if "gpt2" in llm_name:
-            self.transformer_model = GPT2Model.from_pretrained(model_path)
+        if use_pretrained:
+            if "gpt2" in llm_name:
+                self.transformer_model = GPT2Model.from_pretrained(model_path)
+                self.PAD_ID = 50256
+            elif llm_name == "pythia14m":
+                self.transformer_model = GPTNeoXForCausalLM.from_pretrained(
+                    model_path
+                ).gpt_neox
+                self.PAD_ID = 0
+        else:
+            config = GPT2Config()
+            self.transformer_model = GPT2LMHeadModel(config).transformer
             self.PAD_ID = 50256
-        elif llm_name == "pythia14m":
-            self.transformer_model = GPTNeoXForCausalLM.from_pretrained(
-                model_path
-            ).gpt_neox
-            self.PAD_ID = 0
 
         if not fine_tune:
             for param in self.transformer_model.parameters():

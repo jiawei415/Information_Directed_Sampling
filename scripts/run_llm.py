@@ -58,6 +58,7 @@ def get_args():
         default="gpt2",
         choices=["gpt2", "gpt2-medium", "gpt2-large", "pythia14m"],
     )
+    parser.add_argument("--use-pretrained", type=int, default=1, choices=[0, 1])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=1, choices=[0, 1])
     parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
@@ -112,6 +113,7 @@ param = {
         "buffer_size": args.buffer_size,
         "model_type": args.model_type,
         "llm_name": args.llm_name,
+        "use_pretrained": args.use_pretrained,
         "use_lora": args.use_lora,
         "fine_tune": args.fine_tune,
         "out_bias": args.out_bias,
