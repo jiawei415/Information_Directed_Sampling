@@ -1,10 +1,10 @@
 import numpy as np
+import json
 import torch
 import torch.nn as nn
 import loralib as lora
 
-from transformers import GPTNeoXForCausalLM, GPT2Model, GPT2Config
-from .trajectory_gpt2 import GPT2LMHeadModel
+from transformers import GPT2Model, GPT2Config, GPTNeoXModel, GPTNeoXConfig
 from .hypernet import HyperLayer
 from .ensemble import mlp
 
@@ -208,14 +208,16 @@ class HyperLLM(nn.Module):
                 self.transformer_model = GPT2Model.from_pretrained(model_path)
                 self.PAD_ID = 50256
             elif llm_name == "pythia14m":
-                self.transformer_model = GPTNeoXForCausalLM.from_pretrained(
-                    model_path
-                ).gpt_neox
+                self.transformer_model = GPTNeoXModel.from_pretrained(model_path)
                 self.PAD_ID = 0
         else:
-            config = GPT2Config()
-            self.transformer_model = GPT2LMHeadModel(config).transformer
-            self.PAD_ID = 50256
+            config = json.load(open(f"{model_path}/config.json", "rb"))
+            if "gpt2" in llm_name:
+                self.transformer_model = GPT2Model(GPT2Config(**config))
+                self.PAD_ID = 50256
+            elif llm_name == "pythia14m":
+                self.transformer_model = GPTNeoXModel(GPTNeoXConfig(**config))
+                self.PAD_ID = 0
 
         if not fine_tune:
             for param in self.transformer_model.parameters():
