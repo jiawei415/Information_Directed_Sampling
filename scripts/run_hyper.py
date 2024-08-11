@@ -23,153 +23,109 @@ def get_args():
     parser = argparse.ArgumentParser()
     # environment config
     parser.add_argument("--game", type=str, default="Synthetic-v3")
+    parser.add_argument("--time-period", type=int, default=1000)
+    parser.add_argument("--n-context", type=int, default=1)
+    parser.add_argument("--n-features", type=int, default=50)
+    parser.add_argument("--n-arms", type=int, default=20)
+    parser.add_argument("--all-arms", type=int, default=1000)
+    parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
+    parser.add_argument("--eta", type=float, default=0.1)
+    # algorithm config
+    parser.add_argument("--method", type=str, default="Hyper")
+    parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--lr", type=float, default=0.001)
-    parser.add_argument("--fg-lambda", type=float, default=1.0)
-    parser.add_argument("--NpS", type=int, default=20)
+    parser.add_argument("--based-weight-decay", type=float, default=0.0)
+    parser.add_argument("--hyper-weight-decay", type=float, default=0.01)
+    parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
+    parser.add_argument("--z-coef", type=float, default=0.01)
+    parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--action-noise", type=str, default="gs")
     parser.add_argument("--update-noise", type=str, default="pn")
-    parser.add_argument("--noise-dim", type=int, default=4)
-    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--buffer-noise", type=str, default="sp")
+    parser.add_argument("--buffer-size", type=int, default=None)
+    parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
-    parser.add_argument("--update-num", type=int, default=100)
-    parser.add_argument("--repeat-num", type=int, default=500)
-    parser.add_argument("--time-period", type=int, default=50)
+    parser.add_argument("--update-start", type=int, default=128)
+    parser.add_argument("--update-num", type=int, default=1)
+    parser.add_argument("--update-freq", type=int, default=4)
+    parser.add_argument("--prior-scale", type=float, default=5.0)
+    parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
+    # other config
+    parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=3)
-    parser.add_argument("--n-context", type=int, default=1)
-    parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
-    parser.add_argument("--logdir", type=str, default="./results/bandit")
+    parser.add_argument("--log-dir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
     return args
 
 
 args = get_args()
 game = args.game
-now = datetime.now()
-dir = f"{game.lower()}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
-path = os.path.expanduser(os.path.join(args.logdir, game, dir))
+dir = f"{game.lower()}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+path = os.path.expanduser(os.path.join(args.log_dir, game, dir))
 os.makedirs(path, exist_ok=True)
 
 args.hidden_sizes = [args.hidden_size] * args.hidden_layer
-hyper_params = {
+based_param = {
     "noise_dim": args.noise_dim,
     "lr": args.lr,
+    "based_weight_decay": args.based_weight_decay,
+    "hyper_weight_decay": args.hyper_weight_decay,
+    "z_coef": args.z_coef,
     "optim": args.optim,
+    "update_start": args.update_start,
     "update_num": args.update_num,
+    "update_freq": args.update_freq,
     "batch_size": args.batch_size,
     "hidden_sizes": args.hidden_sizes,
+    "prior_scale": args.prior_scale,
     "NpS": args.NpS,
     "action_noise": args.action_noise,
     "update_noise": args.update_noise,
-    "fg_lambda": args.fg_lambda,
-    "fg_decay": True,
-    "reset": False,
+    "buffer_noise": args.buffer_noise,
+    "buffer_size": args.buffer_size,
 }
-
 param = {
     "TS": {},
-    "TS_hyper": {
-        **hyper_params,
-        "fg_lambda": 0.0,
+    "Hyper": {
+        **based_param,
+        "action_noise": args.action_noise,
+        "update_noise": args.update_noise,
+        "out_bias": args.out_bias,
     },
-    "TS_hyper:Reset": {
-        **hyper_params,
-        "fg_lambda": 0.0,
-        "reset": True,
-        "update_num": args.repeat_num,
+    "EpiNet": {
+        **based_param,
+        "action_noise": "gs",
+        "update_noise": "gs",
+        "class_num": 2 if args.game.endswith("v3") else 1,
     },
-    "TS_hyper:FG": {**hyper_params, "fg_decay": False},
-    "TS_hyper:FG Decay": {**hyper_params},
-    "VIDS_action": {"M": 10000, "optim_action": True},
-    "VIDS_action_hyper": {
-        "M": 10000,
-        "optim_action": True,
-        **hyper_params,
-        "fg_lambda": 0.0,
+    "Ensemble": {
+        **based_param,
+        "action_noise": "oh",
+        "update_noise": "oh",
+        "buffer_noise": "gs",
+        "out_bias": args.out_bias,
     },
-    "VIDS_action_hyper:Reset": {
-        "M": 10000,
-        "optim_action": True,
-        **hyper_params,
-        "fg_lambda": 0.0,
-        "reset": True,
-        "update_num": args.repeat_num,
-    },
-    "VIDS_action_hyper:FG": {
-        "M": 10000,
-        "optim_action": True,
-        **hyper_params,
-        "fg_decay": False,
-    },
-    "VIDS_action_hyper:FG Decay": {"M": 10000, "optim_action": True, **hyper_params},
-    "VIDS_action:theta": {"M": 10000, "optim_action": False},
-    "VIDS_action_hyper:theta": {
-        "M": 10000,
-        "optim_action": False,
-        **hyper_params,
-        "fg_lambda": 0.0,
-    },
-    "VIDS_policy": {"M": 10000, "optim_action": True},
-    "VIDS_policy_hyper": {
-        "M": 10000,
-        "optim_action": True,
-        **hyper_params,
-        "fg_lambda": 0.0,
-    },
-    "VIDS_policy_hyper:Reset": {
-        "M": 10000,
-        "optim_action": True,
-        **hyper_params,
-        "fg_lambda": 0.0,
-        "reset": True,
-        "update_num": args.repeat_num,
-    },
-    "VIDS_policy_hyper:FG": {
-        "M": 10000,
-        "optim_action": True,
-        **hyper_params,
-        "fg_decay": False,
-    },
-    "VIDS_policy_hyper:FG Decay": {"M": 10000, "optim_action": True, **hyper_params},
-    "VIDS_policy:theta": {"M": 10000, "optim_action": False},
-    "VIDS_policy_hyper:theta": {
-        "M": 10000,
-        "optim_action": False,
-        **hyper_params,
-        "fg_lambda": 0.0,
-    },
+    "LMCTS": {**based_param},
 }
 
-methods = [
-    # "TS",
-    # "VIDS_action",
-    # "VIDS_policy",
-    # "VIDS_action:theta",
-    # "VIDS_policy:theta",
-    "TS_hyper",
-    # "VIDS_action_hyper",
-    # "VIDS_policy_hyper",
-    # "VIDS_action_hyper:theta",
-    # "VIDS_policy_hyper:theta",
-    # "TS_hyper:Reset",
-    # "TS_hyper:FG",
-    # "TS_hyper:FG Decay",
-    # "VIDS_action_hyper:Reset",
-    # "VIDS_action_hyper:FG",
-    # "VIDS_action_hyper:FG Decay",
-    # "VIDS_policy_hyper:Reset",
-    # "VIDS_policy_hyper:FG",
-    # "VIDS_policy_hyper:FG Decay",
-]
+methods = [args.method]
 
+base_config = {
+    "n_features": args.n_features,
+    "n_arms": args.n_arms,
+    "T": args.time_period,
+    "freq_task": args.freq_task,
+}
 game_config = {
-    "FreqRusso": {"n_features": 5, "n_arms": 30, "T": args.time_period},
-    "movieLens": {"n_features": 30, "n_arms": 207, "T": args.time_period},
-    "Russo": {"n_features": 5, "n_arms": 30, "T": args.time_period},
-    "Zhang": {"n_features": 100, "n_arms": 10, "T": args.time_period},
-    "Synthetic-v1": {"n_features": 50, "n_arms": 20, "T": args.time_period},
-    "Synthetic-v2": {"n_features": 50, "n_arms": 20, "T": args.time_period},
-    "Synthetic-v3": {"n_features": 50, "n_arms": 20, "T": args.time_period},
+    "Synthetic-v1": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v2": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": 0.0},
+    "Synthetic-v4": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "RealData-v1": {**base_config},
+    "RealData-v2": {**base_config},
+    "RealData-v3": {**base_config},
+    "RealData-v4": {**base_config},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:
@@ -208,6 +164,7 @@ expe_params = {
     "colors": colors,
     "path": path,
     "problem": game,
+    "seed": args.seed,
     **game_config[game],
 }
 if args.n_context > 0:
