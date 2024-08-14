@@ -6,7 +6,7 @@ import torch
 from torch.optim import Optimizer
 
 from network import LinearNet
-from .hypersolution import HyperSolution
+from .hypersolution import HyperSolution, ReplayBuffer
 
 
 def lmc(
@@ -90,6 +90,10 @@ class LangevinMC(Optimizer):
 
 class LMCTS(HyperSolution):
 
+    def init_buffer(self):
+        buffer_shape = {"f": (self.feature_dim,), "r": (), }
+        self.buffer = ReplayBuffer(self.buffer_size, buffer_shape, self.buffer_noise)
+
     def init_model_optimizer(self):
         # init hypermodel
         model_param = {
@@ -101,8 +105,8 @@ class LMCTS(HyperSolution):
         }
 
         self.model = LinearNet(**model_param).to(self.device)
-        print(f"\nNetwork structure:\n{str(self.model)}")
-        print(
+        self.logger.info(f"Network structure:\n{str(self.model)}")
+        self.logger.info(
             f"Network parameters: {sum(param.numel() for param in self.model.parameters() if param.requires_grad)}"
         )
         # init optimizer
@@ -117,37 +121,21 @@ class LMCTS(HyperSolution):
     def put(self, transition):
         self.buffer.put(transition)
 
-    def _update(self):
+    def update(self):
         if self.batch_size == 0:
-            s_batch, f_batch, r_batch, z_batch = self.buffer.sample_all()
+            f_batch, r_batch, z_batch = self.buffer.sample_all()
         else:
-            s_batch, f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
-        self.learn(s_batch, f_batch, r_batch, z_batch)
+            f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
+        self.learn(f_batch, r_batch)
 
-    def learn(self, s_batch, f_batch, r_batch, z_batch):
-        # z_batch = torch.FloatTensor(z_batch).to(self.device)
+    def learn(self, f_batch, r_batch):
         f_batch = torch.FloatTensor(f_batch).to(self.device)
         r_batch = torch.FloatTensor(r_batch).to(self.device)
-        if s_batch is not None:
-            s_batch = torch.FloatTensor(s_batch).to(self.device)
 
         predict = self.model(f_batch)
         diff = r_batch.unsqueeze(-1) - predict
         diff = diff.pow(2).mean(-1)
-        if self.fg_lambda:
-            fg_lambda = (
-                self.fg_lambda / np.sqrt(len(self.buffer))
-                if self.fg_decay
-                else self.fg_lambda
-            )
-            fg_term = self.model(s_batch)
-            fg_term = fg_term.max(dim=-1)[0]
-            loss = (diff - fg_lambda * fg_term).mean()
-        else:
-            loss = diff.mean()
-        # norm_coef = self.norm_coef / len(self.buffer)
-        # reg_loss = self.model.regularization(update_noise) * norm_coef
-        # loss += reg_loss
+        loss = diff.mean()
 
         self.optimizer.zero_grad()
         loss.backward()

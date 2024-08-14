@@ -1,5 +1,11 @@
 """ Packages import """
 
+import os
+import matplotlib.pyplot as plt
+import pickle as pkl
+import numpy as np
+
+from tqdm import tqdm
 from agent.BernoulliMAB import BetaBernoulliMAB
 from agent.GaussianMAB import GaussianMAB
 from agent.FiniteSetsMAB import FiniteSets
@@ -30,9 +36,6 @@ from utils import (
     build_bernoulli_finite_set,
     plot_IDS_results,
 )
-import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import tqdm
 
 
 def bernoulli_expe(
@@ -268,6 +271,7 @@ def HyperMAB_expe(
 
 
 def FiniteContextHyperMAB_expe(
+    problem,
     n_expe,
     n_context,
     n_features,
@@ -275,12 +279,12 @@ def FiniteContextHyperMAB_expe(
     T,
     methods,
     param_dic,
+    path,
     labels,
     colors,
-    path,
-    problem="FreqRusso",
-    doplot=False,
     freq_task=True,
+    doplot=False,
+    store=False,
     seed=2022,
     **kwargs,
 ):
@@ -366,6 +370,8 @@ def FiniteContextHyperMAB_expe(
     )
     if doplot:
         plotRegret(labels, results, colors, title, path, log=False)
+    if store:
+        pkl.dump(results, open(os.path.join(path, "results.pkl"), "wb"))
     return results
 
 

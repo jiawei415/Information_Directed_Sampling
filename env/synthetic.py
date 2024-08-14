@@ -78,21 +78,25 @@ class SyntheticNonlinModel:
         # reward
         self.reward_version = reward_version
         if reward_version == "v1":
+            # quadratic reward
             self.reward_fn = getattr(self, "reward_fn1")
             theta = sigma * self.prior_random.standard_normal(
                 size=(n_features, n_features), dtype=np.float32
             )
             self.real_theta = theta @ theta.T
         elif reward_version == "v2":
+            # exponential reward
             self.reward_fn = getattr(self, "reward_fn2")
             theta = sigma * self.prior_random.standard_normal(
                 size=n_features, dtype=np.float32
             )
             self.real_theta = theta / np.linalg.norm(theta)
         elif reward_version == "v3":
+            # neural classification reward
             self.set_reward_model(n_features, 2, prior_random_state)
             self.reward_fn = getattr(self, "reward_fn3")
         elif reward_version == "v4":
+            # neural regression reward
             self.set_reward_model(n_features, 1, prior_random_state)
             self.reward_fn = getattr(self, "reward_fn4")
         else:
@@ -103,14 +107,6 @@ class SyntheticNonlinModel:
         self.alg_prior_sigma = sigma
         self.resample_feature = resample_feature
         self.set_context()
-
-    # @property
-    # def n_features(self):
-    #     return self.features.shape[1]
-
-    # @property
-    # def n_actions(self):
-    #     return self.features.shape[0]
 
     def set_feature(self):
         x = self.prior_random.standard_normal(
@@ -137,7 +133,6 @@ class SyntheticNonlinModel:
         self.sub_rewards = self.all_rewards[sub_action_set]
 
     def set_reward_model(self, input_dim, output_dim, seed):
-        np.random.seed(seed)
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -182,6 +177,6 @@ class SyntheticNonlinModel:
         """
         Compute the regret of a single step
         """
-        expect_reward = self.sub_rewards[arm]
+        expect_reward = self.sub_rewards[arm][0]
         best_arm_reward = self.sub_rewards.max()
         return best_arm_reward - expect_reward

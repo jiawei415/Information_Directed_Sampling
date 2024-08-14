@@ -8,23 +8,25 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from logger import Logger
 from utils import sample_action_noise, sample_update_noise, sample_buffer_noise
 from network import HyperNet, EnsembleNet, EpiNet
 
 
 class ReplayBuffer:
     def __init__(
-        self, buffer_size, buffer_shape, noise_type="sp", save_full_feature=False
+        self, buffer_size, buffer_shape, noise_type="sp"
     ):
         self.buffers = {
             key: np.empty([buffer_size, *shape], dtype=np.float32)
             for key, shape in buffer_shape.items()
         }
         self.buffer_size = buffer_size
-        self.noise_dim = buffer_shape["z"][-1]
-        self.save_full_feature = save_full_feature
+        self.store_z = "z" in buffer_shape.keys()
+        if self.store_z:
+            self.noise_dim = buffer_shape["z"][-1]
+            self.set_buffer_noise(noise_type)
         self.sample_num = 0
-        self.set_buffer_noise(noise_type)
 
     def set_buffer_noise(self, noise_type):
         args = {"M": self.noise_dim}
@@ -47,29 +49,23 @@ class ReplayBuffer:
         return self.sample_num
 
     def _sample(self, index):
-        if self.save_full_feature:
-            a_data = self.buffers["a"][: self.sample_num]
-            f_data = s_data[np.arange(self.sample_num), a_data.astype(np.int32)][index]
-            s_data = self.buffers["s"][: self.sample_num][index]
-        else:
-            f_data = self.buffers["f"][: self.sample_num][index]
-            s_data = None
+        f_data = self.buffers["f"][: self.sample_num][index]
         r_data = self.buffers["r"][: self.sample_num][index]
-        z_data = self.buffers["z"][: self.sample_num][index]
-        return s_data, f_data, r_data, z_data
+        if self.store_z:
+            z_data = self.buffers["z"][: self.sample_num][index]
+        else:
+            z_data = None
+        return f_data, r_data, z_data
 
     def reset(self):
         self.sample_num = 0
 
     def put(self, transition):
-        if self.save_full_feature:
-            for k, v in transition.items():
-                self.buffers[k][self.sample_num] = v
-        else:
-            self.buffers["r"][self.sample_num] = transition["r"]
-            self.buffers["f"][self.sample_num] = transition["s"][transition["a"]]
-        z = self.gen_noise()
-        self.buffers["z"][self.sample_num] = z
+        self.buffers["r"][self.sample_num] = transition["r"]
+        self.buffers["f"][self.sample_num] = transition["f"]
+        if self.store_z:
+            z = self.gen_noise()
+            self.buffers["z"][self.sample_num] = z
         self.sample_num += 1
 
     def get(self, shuffle=True):
@@ -91,61 +87,59 @@ class ReplayBuffer:
 class HyperSolution:
     def __init__(
         self,
-        noise_dim: int,
         n_action: int,
         n_feature: int,
-        class_num: int = 1,
-        hidden_sizes: Sequence[int] = (),
-        prior_scale: float = 1.0,
-        posterior_scale: float = 1.0,
-        batch_size: int = 32,
-        lr: float = 0.01,
-        optim: str = "Adam",
-        fg_lambda: float = 0.0,
-        fg_decay: bool = True,
-        based_weight_decay: float = 0.01,
-        hyper_weight_decay: float = 0.01,
-        noise_coef: float = 0.01,
-        buffer_size: int = 10000,
-        buffer_noise: str = "sp",
+        noise_dim: int,
         NpS: int = 20,
+        noise_coef: float = 0.01,
+        buffer_noise: str = "sp",
         action_noise: str = "sgs",
         update_noise: str = "pn",
-        model_type: str = "hyper",
+        prior_scale: float = 1.0,
+        posterior_scale: float = 1.0,
+        hidden_sizes: Sequence[int] = (),
         out_bias: bool = True,
-        reset: bool = False,
+        class_num: int = 1,
+        optim: str = "Adam",
+        lr: float = 0.01,
+        batch_size: int = 32,
+        based_weight_decay: float = 0.01,
+        hyper_weight_decay: float = 0.01,
+        buffer_size: int = 10000,
+        model_type: str = "hyper",
+        logger: Logger = None,
     ):
-        self.noise_dim = noise_dim
         self.action_dim = n_action
         self.feature_dim = n_feature
-        self.class_num = class_num
-        self.hidden_sizes = hidden_sizes
-        self.prior_scale = prior_scale
-        self.posterior_scale = posterior_scale
-        self.lr = lr
-        self.fg_lambda = fg_lambda
-        self.fg_decay = fg_decay
-        self.batch_size = batch_size
+
+        self.noise_dim = noise_dim
         self.NpS = NpS
-        self.optim = optim
-        self.based_weight_decay = based_weight_decay
-        self.hyper_weight_decay = hyper_weight_decay
         self.noise_coef = noise_coef
-        self.buffer_size = buffer_size
+        self.buffer_noise = buffer_noise
         self.action_noise = action_noise
         self.update_noise = update_noise
-        self.buffer_noise = buffer_noise
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model_type = model_type
+        self.prior_scale = prior_scale
+        self.posterior_scale = posterior_scale
+
+        self.hidden_sizes = hidden_sizes
         self.out_bias = out_bias
+        self.class_num = class_num
+
+        self.optim = optim
+        self.lr = lr
+        self.batch_size = batch_size
+        self.based_weight_decay = based_weight_decay
+        self.hyper_weight_decay = hyper_weight_decay
+
+        self.buffer_size = buffer_size
+        self.model_type = model_type
+        self.logger = logger
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.init_model_optimizer()
         self.init_buffer()
         self.set_update_noise()
         self.set_action_noise()
-        self.update = (
-            getattr(self, "_update_reset") if reset else getattr(self, "_update")
-        )
 
     def init_model_optimizer(self):
         # init hypermodel
@@ -169,8 +163,19 @@ class HyperSolution:
         else:
             raise NotImplementedError
         self.model = Net(**model_param).to(self.device)
-        print(f"\nNetwork structure:\n{str(self.model)}")
-        print(
+        param_dict = {"Trainable": [], "Frozen": []}
+        trainable_param_size, frozen_param_size = 0, 0
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                trainable_param_size += param.numel()
+                param_dict["Trainable"].append(name)
+            else:
+                frozen_param_size += param.numel()
+                param_dict["Frozen"].append(name)
+        self.logger.info(f"Trainable parameters:\n", "\n".join(param_dict['Trainable']))
+        self.logger.info(f"Frozen parameters:\n", "\n".join(param_dict['Frozen']))
+        self.logger.info(f"Network structure:\n{str(self.model)}")
+        self.logger.info(
             f"Network parameters: {sum(param.numel() for param in self.model.parameters() if param.requires_grad)}"
         )
         # init optimizer
@@ -179,7 +184,7 @@ class HyperSolution:
                 "params": (
                     p
                     for name, p in self.model.named_parameters()
-                    if "basedmodel" in name and "prior" not in name
+                    if "based" in name and "prior" not in name
                 ),
                 "weight_decay": self.based_weight_decay,
             },
@@ -200,59 +205,20 @@ class HyperSolution:
             raise NotImplementedError
 
     def init_buffer(self):
-        # init replay buffer
-        # buffer_shape = {
-        #     "s": (self.action_dim, self.feature_dim),
-        #     "a": (),
-        #     "r": (),
-        #     "z": (self.noise_dim,),
-        # }
         buffer_shape = {"f": (self.feature_dim,), "r": (), "z": (self.noise_dim,)}
         self.buffer = ReplayBuffer(self.buffer_size, buffer_shape, self.buffer_noise)
 
-    def _update(self):
-        s_batch, f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
-        self.learn(s_batch, f_batch, r_batch, z_batch)
-
-    def _update_reset(self):
-        sample_num = len(self.buffer)
-        if sample_num > self.batch_size:
-            s_data, f_data, r_data, z_data = self.buffer.get()
-            for i in range(0, self.batch_size, sample_num):
-                s_batch, f_batch, r_batch, z_batch = (
-                    s_data[i : i + self.batch_size],
-                    f_data[i : i + self.batch_size],
-                    r_data[i : i + self.batch_size],
-                    z_data[i : i + self.batch_size],
-                )
-                self.learn(s_batch, f_batch, r_batch, z_batch)
-            if sample_num % self.batch_size != 0:
-                last_sample = sample_num % self.batch_size
-                index1 = -np.arange(1, last_sample + 1).astype(np.int32)
-                index2 = np.random.randint(
-                    low=0, high=sample_num, size=self.batch_size - last_sample
-                )
-                index = np.hstack([index1, index2])
-                s_batch, f_batch, r_batch, z_batch = (
-                    s_data[index],
-                    f_data[index],
-                    r_data[index],
-                    z_data[index],
-                )
-                self.learn(s_batch, f_batch, r_batch, z_batch)
-        else:
-            s_batch, f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
-            self.learn(s_batch, f_batch, r_batch, z_batch)
+    def update(self):
+        f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
+        self.learn(f_batch, r_batch, z_batch)
 
     def put(self, transition):
         self.buffer.put(transition)
 
-    def learn(self, s_batch, f_batch, r_batch, z_batch):
+    def learn(self, f_batch, r_batch, z_batch):
         z_batch = torch.FloatTensor(z_batch).to(self.device)
         f_batch = torch.FloatTensor(f_batch).to(self.device)
         r_batch = torch.FloatTensor(r_batch).to(self.device)
-        if s_batch is not None:
-            s_batch = torch.FloatTensor(s_batch).to(self.device)
 
         # noise for update
         update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
@@ -268,17 +234,7 @@ class HyperSolution:
         else:
             diff = target_noise.squeeze(-1) + r_batch.unsqueeze(-1) - predict
             diff = diff.pow(2).mean(-1)
-            if self.fg_lambda:
-                fg_lambda = (
-                    self.fg_lambda / np.sqrt(len(self.buffer))
-                    if self.fg_decay
-                    else self.fg_lambda
-                )
-                fg_term = self.model(update_noise, s_batch)
-                fg_term = fg_term.max(dim=-1)[0]
-                loss = (diff - fg_lambda * fg_term).mean()
-            else:
-                loss = diff.mean()
+            loss = diff.mean()
 
         for param_group in self.optimizer.param_groups:
             param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)
@@ -337,6 +293,3 @@ class HyperSolution:
             self.gen_update_noise = partial(
                 sample_update_noise, "SparseConsistent", **args
             )
-
-    def reset(self):
-        self.init_model_optimizer()

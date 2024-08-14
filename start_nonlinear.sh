@@ -5,10 +5,9 @@ log_dir="/apdcephfs/share_1563664/ztjiaweixu/bandit_sz/$group"
 
 freq_task=1
 n_context=1
-time_period=10000000
+time_period=1000000
 n_features=100
 n_arms=1000
-n_expe=1
 NpS=16
 noise_dim=4
 action_noise=sp
@@ -29,11 +28,11 @@ do
     do
         tag=$(date "+%Y%m%d%H%M%S")
         python -m scripts.run_nonlinear --game=${game} --method=${method} --seed=${seed} \
-            --freq-task=${freq_task} --n-context=${n_context} \
+            --freq-task=${freq_task} --n-context=${n_context} --time-period=${time_period} \
             --n-features=${n_features} --n-arms=${n_arms} \
             --noise-dim=${noise_dim} --NpS=${NpS} \
             --action-noise=${action_noise} --update-noise=${update_noise} --buffer-noise=${buffer_noise} \
-            --time-period=${time_period} --n-expe=${n_expe} --log-dir=${log_dir} \
+            --log-dir=${log_dir} \
             > ~/logs/${game}_${tag}.out 2> ~/logs/${game}_${tag}.err &
         echo "run $method $game $cuda_id $seed $tag"
         let seed=$seed+1

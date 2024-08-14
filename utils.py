@@ -369,7 +369,7 @@ def storeRegret(
     for i, m in enumerate(methods):
         set_seed(seed, use_torch=use_torch)
         alg_name = m.split(":")[0]
-        logger = configure(path, ["csv"])
+        logger = configure(path, ["csv", "stdout"])
         for j in tqdm(range(n_expe)):
             model = models[j]
             alg = model.__getattribute__(alg_name)

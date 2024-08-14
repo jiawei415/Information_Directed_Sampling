@@ -230,51 +230,52 @@ class HyperMAB:
         T,
         logger,
         noise_dim=2,
-        lr=0.01,
-        based_weight_decay=0.0,
-        hyper_weight_decay=0.0,
-        z_coef=None,
-        batch_size=32,
-        hidden_sizes=(),
-        prior_scale=1.0,
-        optim="Adam",
-        update_num=2,
-        update_start=32,
-        update_freq=1,
         NpS=20,
+        z_coef=None,
         action_noise="pn",
         update_noise="gs",
         buffer_noise="sp",
-        buffer_size=None,
+        prior_scale=1.0,
+        posterior_scale=1.0,
+        hidden_sizes=(),
         out_bias=True,
+        optim="Adam",
+        lr=0.01,
+        batch_size=32,
+        based_weight_decay=0.0,
+        hyper_weight_decay=0.0,
+        buffer_size=None,
+        update_num=2,
+        update_start=32,
+        update_freq=1,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = HyperSolution(
-            noise_dim,
             self.n_a,
             self.d,
-            hidden_sizes=hidden_sizes,
-            prior_scale=prior_scale,
-            lr=lr,
-            batch_size=batch_size,
-            optim=optim,
-            noise_coef=z_coef,
-            based_weight_decay=based_weight_decay,
-            hyper_weight_decay=hyper_weight_decay,
-            buffer_size=buffer_size,
+            noise_dim=noise_dim,
             NpS=NpS,
+            noise_coef=z_coef,
             action_noise=action_noise,
             update_noise=update_noise,
             buffer_noise=buffer_noise,
-            model_type="hyper",
+            prior_scale=prior_scale,
+            posterior_scale=posterior_scale,
+            hidden_sizes=hidden_sizes,
             out_bias=out_bias,
+            optim=optim,
+            lr=lr,
+            batch_size=batch_size,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
+            buffer_size=buffer_size,
+            model_type="hyper",
+            logger=logger,
         )
 
         log_interval = T // 1000
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
-            T, dtype=np.float32
-        )
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)
@@ -282,7 +283,7 @@ class HyperMAB:
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
-            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            transitions = {"f": f_t, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
             if t >= update_start and (t + 1) % update_freq == 0:
@@ -290,6 +291,8 @@ class HyperMAB:
                     model.update()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
                 logger.dump(t)
         return reward, expected_regret
@@ -299,51 +302,54 @@ class HyperMAB:
         T,
         logger,
         noise_dim=2,
+        NpS=20,
+        z_coef=None,
+        action_noise="pn",
+        update_noise="gs",
+        buffer_noise="sp",
+        prior_scale=1.0,
+        posterior_scale=1.0,
+        hidden_sizes=(),
+        out_bias=True,
+        class_num=1,
+        optim="Adam",
         lr=0.01,
+        batch_size=32,
         based_weight_decay=0.0,
         hyper_weight_decay=0.0,
-        z_coef=None,
-        batch_size=32,
-        hidden_sizes=(),
-        prior_scale=1.0,
-        optim="Adam",
+        buffer_size=None,
         update_num=2,
         update_start=32,
         update_freq=1,
-        NpS=20,
-        action_noise="gs",
-        update_noise="gs",
-        buffer_noise="sp",
-        buffer_size=None,
-        class_num=1,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = HyperSolution(
-            noise_dim,
             self.n_a,
             self.d,
-            hidden_sizes=hidden_sizes,
-            class_num=class_num,
-            prior_scale=prior_scale,
-            lr=lr,
-            batch_size=batch_size,
-            optim=optim,
-            noise_coef=z_coef,
-            based_weight_decay=based_weight_decay,
-            hyper_weight_decay=hyper_weight_decay,
-            buffer_size=buffer_size,
+            noise_dim=noise_dim,
             NpS=NpS,
+            noise_coef=z_coef,
             action_noise=action_noise,
             update_noise=update_noise,
             buffer_noise=buffer_noise,
-            model_type="epinet",
+            prior_scale=prior_scale,
+            posterior_scale=posterior_scale,
+            hidden_sizes=hidden_sizes,
+            out_bias=out_bias,
+            class_num=class_num,
+            optim=optim,
+            lr=lr,
+            batch_size=batch_size,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
+            buffer_size=buffer_size,
+            model_type="hyper",
+            logger=logger,
         )
 
         log_interval = T // 1000
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
-            T, dtype=np.float32
-        )
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)
@@ -353,7 +359,7 @@ class HyperMAB:
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
-            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            transitions = {"f": f_t, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
             if t >= update_start and (t + 1) % update_freq == 0:
@@ -361,6 +367,8 @@ class HyperMAB:
                     model.update()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
                 logger.dump(t)
         return reward, expected_regret
@@ -370,51 +378,52 @@ class HyperMAB:
         T,
         logger,
         noise_dim=2,
+        NpS=20,
+        z_coef=None,
+        action_noise="pn",
+        update_noise="gs",
+        buffer_noise="sp",
+        prior_scale=1.0,
+        posterior_scale=1.0,
+        hidden_sizes=(),
+        out_bias=True,
+        optim="Adam",
         lr=0.01,
+        batch_size=32,
         based_weight_decay=0.0,
         hyper_weight_decay=0.0,
-        z_coef=None,
-        batch_size=32,
-        hidden_sizes=(),
-        prior_scale=1.0,
-        optim="Adam",
+        buffer_size=None,
         update_num=2,
         update_start=32,
         update_freq=1,
-        NpS=20,
-        action_noise="oh",
-        update_noise="oh",
-        buffer_noise="gs",
-        buffer_size=None,
-        out_bias=True,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = HyperSolution(
-            noise_dim,
             self.n_a,
             self.d,
-            hidden_sizes=hidden_sizes,
-            prior_scale=prior_scale,
-            lr=lr,
-            batch_size=batch_size,
-            optim=optim,
-            noise_coef=z_coef,
-            based_weight_decay=based_weight_decay,
-            hyper_weight_decay=hyper_weight_decay,
-            buffer_size=buffer_size,
+            noise_dim=noise_dim,
             NpS=NpS,
+            noise_coef=z_coef,
             action_noise=action_noise,
             update_noise=update_noise,
             buffer_noise=buffer_noise,
-            model_type="ensemble",
+            prior_scale=prior_scale,
+            posterior_scale=posterior_scale,
+            hidden_sizes=hidden_sizes,
             out_bias=out_bias,
+            optim=optim,
+            lr=lr,
+            batch_size=batch_size,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
+            buffer_size=buffer_size,
+            model_type="ensemble",
+            logger=logger,
         )
 
         log_interval = T // 1000
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
-            T, dtype=np.float32
-        )
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)
@@ -422,7 +431,7 @@ class HyperMAB:
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
-            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            transitions = {"f": f_t, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
             if t >= update_start and (t + 1) % update_freq == 0:
@@ -430,6 +439,8 @@ class HyperMAB:
                     model.update()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
                 logger.dump(t)
         return reward, expected_regret
@@ -439,50 +450,53 @@ class HyperMAB:
         T,
         logger,
         noise_dim=2,
+        NpS=20,
+        z_coef=None,
+        action_noise="pn",
+        update_noise="gs",
+        buffer_noise="sp",
+        prior_scale=1.0,
+        posterior_scale=1.0,
+        hidden_sizes=(),
+        out_bias=True,
+        optim="Adam",
         lr=0.01,
+        batch_size=32,
         based_weight_decay=0.0,
         hyper_weight_decay=0.0,
-        z_coef=None,
-        batch_size=32,
-        hidden_sizes=(),
-        prior_scale=1.0,
-        optim="Adam",
+        buffer_size=None,
         update_num=2,
         update_start=32,
         update_freq=1,
-        NpS=20,
-        action_noise="oh",
-        update_noise="oh",
-        buffer_noise="gs",
-        buffer_size=None,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = LMCTS(
-            noise_dim,
             self.n_a,
             self.d,
-            hidden_sizes=hidden_sizes,
-            prior_scale=prior_scale,
-            lr=lr,
-            batch_size=batch_size,
-            optim=optim,
-            noise_coef=z_coef,
-            based_weight_decay=based_weight_decay,
-            hyper_weight_decay=hyper_weight_decay,
-            buffer_size=buffer_size,
+            noise_dim=noise_dim,
             NpS=NpS,
+            noise_coef=z_coef,
             action_noise=action_noise,
             update_noise=update_noise,
             buffer_noise=buffer_noise,
+            prior_scale=prior_scale,
+            posterior_scale=posterior_scale,
+            hidden_sizes=hidden_sizes,
+            out_bias=out_bias,
+            optim=optim,
+            lr=lr,
+            batch_size=batch_size,
+            based_weight_decay=based_weight_decay,
+            hyper_weight_decay=hyper_weight_decay,
+            buffer_size=buffer_size,
             model_type="linear",
+            logger=logger,
         )
 
         update_step = 0
         log_interval = T // 1000
-        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(
-            T, dtype=np.float32
-        )
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)
@@ -490,7 +504,7 @@ class HyperMAB:
             f_t, r_t = self.features[a_t], self.reward(a_t)[0]
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
-            transitions = {"s": self.features, "r": r_t, "a": a_t}
+            transitions = {"f": f_t, "r": r_t, "a": a_t}
             model.put(transitions)
             # update hypermodel
             if t >= update_start and (t + 1) % update_freq == 0:
@@ -505,6 +519,8 @@ class HyperMAB:
                 update_step += 1
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
                 logger.dump(t)
         return reward, expected_regret
