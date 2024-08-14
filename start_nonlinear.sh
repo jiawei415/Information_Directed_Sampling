@@ -1,7 +1,6 @@
 id=$1
 
-group="20240812$id"
-log_dir="/apdcephfs/share_1563664/ztjiaweixu/bandit_sz/$group"
+log_dir="/apdcephfs/share_1563664/ztjiaweixu/bandit_sz/2024$id"
 
 freq_task=1
 n_context=1
@@ -23,7 +22,7 @@ for game in Synthetic-v1 Synthetic-v4
 # for game in RealData-v1 RealData-v2 RealData-v3 RealData-v4
 do
     export CUDA_VISIBLE_DEVICES=${cuda_id}
-    seed=2025
+    seed=0
     for i in $(seq 5)
     do
         tag=$(date "+%Y%m%d%H%M%S")

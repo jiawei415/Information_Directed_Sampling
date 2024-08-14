@@ -280,7 +280,7 @@ class HyperMAB:
             self.set_context()
             value = model.predict(self.features)
             a_t = rd_argmax(value)
-            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            f_t, r_t = self.features[a_t], self.reward(a_t)
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
             transitions = {"f": f_t, "r": r_t, "a": a_t}
@@ -356,7 +356,7 @@ class HyperMAB:
             if class_num > 1:
                 value = value[:, 1]
             a_t = rd_argmax(value)
-            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            f_t, r_t = self.features[a_t], self.reward(a_t)
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
             transitions = {"f": f_t, "r": r_t, "a": a_t}
@@ -428,7 +428,7 @@ class HyperMAB:
             self.set_context()
             value = model.predict(self.features)
             a_t = rd_argmax(value)
-            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            f_t, r_t = self.features[a_t], self.reward(a_t)
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
             transitions = {"f": f_t, "r": r_t, "a": a_t}
@@ -501,7 +501,7 @@ class HyperMAB:
             self.set_context()
             value = model.predict(self.features)
             a_t = rd_argmax(value)
-            f_t, r_t = self.features[a_t], self.reward(a_t)[0]
+            f_t, r_t = self.features[a_t], self.reward(a_t)
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
 
             transitions = {"f": f_t, "r": r_t, "a": a_t}

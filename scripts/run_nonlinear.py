@@ -24,7 +24,7 @@ def get_args():
     parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
-    parser.add_argument("--method", type=str, default="LMCTS")
+    parser.add_argument("--method", type=str, default="Hyper")
     parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--z-coef", type=float, default=0.01)
@@ -59,7 +59,7 @@ def get_args():
 
 args = get_args()
 
-tag = f"{args.game.lower()}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+tag = f"{args.game.lower()}_{args.method}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
 path = os.path.expanduser(os.path.join(args.log_dir, args.game, tag))
 os.makedirs(path, exist_ok=True)
 

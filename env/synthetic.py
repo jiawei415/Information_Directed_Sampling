@@ -44,6 +44,7 @@ class MLP(nn.Module):
         x = torch.from_numpy(x).to(self.device)
         logits = self.model(x)
         if self.output_dim == 1:
+            logits = logits.squeeze(-1)
             return logits.detach().cpu().numpy()
         probs = F.softmax(logits / self.temperature, -1)
         out = probs[:, 1]
@@ -164,7 +165,7 @@ class SyntheticNonlinModel:
         else:
             reward = self.sub_rewards[arm]
             noise = (
-                self.reward_random.standard_normal(size=1, dtype=np.float32) * self.eta
+                self.reward_random.standard_normal(dtype=np.float32) * self.eta
             )
             return reward + noise
 
@@ -177,6 +178,6 @@ class SyntheticNonlinModel:
         """
         Compute the regret of a single step
         """
-        expect_reward = self.sub_rewards[arm][0]
+        expect_reward = self.sub_rewards[arm]
         best_arm_reward = self.sub_rewards.max()
         return best_arm_reward - expect_reward
