@@ -376,18 +376,19 @@ def FiniteContextHyperMAB_expe(
 
 
 def InfiniteContextHyperMAB_expe(
+    problem,
     n_expe,
     n_features,
     n_arms,
     T,
     methods,
     param_dic,
+    path,
     labels,
     colors,
-    path,
-    problem="FreqRusso",
-    doplot=False,
     freq_task=True,
+    doplot=False,
+    store=False,
     seed=2022,
     **kwargs,
 ):
@@ -453,6 +454,8 @@ def InfiniteContextHyperMAB_expe(
     )
     if doplot:
         plotRegret(labels, results, colors, title, path, log=False)
+    if store:
+        pkl.dump(results, open(os.path.join(path, "results.pkl"), "wb"))
     return results
 
 
