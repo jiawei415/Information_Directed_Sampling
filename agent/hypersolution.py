@@ -68,20 +68,17 @@ class ReplayBuffer:
             self.buffers["z"][self.sample_num] = z
         self.sample_num += 1
 
-    def get(self, shuffle=True):
-        # get all data in buffer
-        index = list(range(self.sample_num))
-        if shuffle:
-            np.random.shuffle(index)
-        return self._sample(index)
-
     def sample(self, n):
         # get n data in buffer
         index = np.random.randint(low=0, high=self.sample_num, size=n)
         return self._sample(index)
 
-    def sample_all(self):
-        return self._sample(range(self.sample_num))
+    def sample_all(self, shuffle=True):
+        # get all data in buffer
+        index = list(range(self.sample_num))
+        if shuffle:
+            np.random.shuffle(index)
+        return self._sample(index)
 
 
 class HyperSolution:
@@ -209,7 +206,10 @@ class HyperSolution:
         self.buffer = ReplayBuffer(self.buffer_size, buffer_shape, self.buffer_noise)
 
     def update(self):
-        f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
+        if self.batch_size is None:
+            f_batch, r_batch, z_batch = self.buffer.sample_all()
+        else:
+            f_batch, r_batch, z_batch = self.buffer.sample(self.batch_size)
         self.learn(f_batch, r_batch, z_batch)
 
     def put(self, transition):
@@ -221,7 +221,7 @@ class HyperSolution:
         r_batch = torch.FloatTensor(r_batch).to(self.device)
 
         # noise for update
-        update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
+        update_noise = torch.from_numpy(self.gen_update_noise(batch_size=len(r_batch))).to(self.device)
         # noise for target
         target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
 
