@@ -115,7 +115,7 @@ class LMCTS(HyperSolution):
             self.model.parameters(),
             lr=self.lr,
             beta_inv=beta_inv,
-            weight_decay=self.based_weight_decay,
+            weight_decay=self.weight_decay,
         )
 
     def put(self, transition):

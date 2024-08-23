@@ -100,8 +100,7 @@ class HyperSolution:
         optim: str = "Adam",
         lr: float = 0.01,
         batch_size: int = 32,
-        based_weight_decay: float = 0.01,
-        hyper_weight_decay: float = 0.01,
+        weight_decay: float = 0.01,
         buffer_size: int = 10000,
         model_type: str = "hyper",
         logger: Logger = None,
@@ -125,8 +124,7 @@ class HyperSolution:
         self.optim = optim
         self.lr = lr
         self.batch_size = batch_size
-        self.based_weight_decay = based_weight_decay
-        self.hyper_weight_decay = hyper_weight_decay
+        self.weight_decay = weight_decay
 
         self.buffer_size = buffer_size
         self.model_type = model_type
@@ -174,29 +172,11 @@ class HyperSolution:
         self.logger.info(
             f"Network parameters: {sum(param.numel() for param in self.model.parameters() if param.requires_grad)}"
         )
-        # init optimizer
-        trainable_params = [
-            {
-                "params": (
-                    p
-                    for name, p in self.model.named_parameters()
-                    if "based" in name and "prior" not in name
-                ),
-                "weight_decay": self.based_weight_decay,
-            },
-            {
-                "params": (
-                    p
-                    for name, p in self.model.named_parameters()
-                    if "based" not in name and "prior" not in name
-                ),
-                "weight_decay": self.hyper_weight_decay,
-            },
-        ]
+        trainable_params = filter(lambda p: p.requires_grad, self.model.parameters())
         if self.optim == "Adam":
-            self.optimizer = torch.optim.Adam(trainable_params, lr=self.lr)
+            self.optimizer = torch.optim.Adam(trainable_params, lr=self.lr, weight_decay=self.weight_decay)
         elif self.optim == "SGD":
-            self.optimizer = torch.optim.SGD(trainable_params, lr=self.lr, momentum=0.9)
+            self.optimizer = torch.optim.SGD(trainable_params, lr=self.lr, weight_decay=self.weight_decay, momentum=0.9)
         else:
             raise NotImplementedError
 
@@ -236,7 +216,7 @@ class HyperSolution:
             loss = diff.mean()
 
         for param_group in self.optimizer.param_groups:
-            param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)
+            param_group["weight_decay"] = self.weight_decay / len(self.buffer)
 
         self.optimizer.zero_grad()
         loss.backward()
