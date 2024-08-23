@@ -223,17 +223,18 @@ class HyperNet(nn.Module):
 
         feature_dim = in_features if len(hidden_sizes) == 0 else hidden_sizes[-1]
 
-        self.basedout = nn.Linear(feature_dim, 1, bias=False)
-        self.priorout = nn.Linear(feature_dim, 1, bias=False)
-        for param in self.priorout.parameters():
-            param.requires_grad = False
+        if feature_sg:
+            self.based_out = nn.Linear(feature_dim, 1, bias=False)
+            self.prior_out = nn.Linear(feature_dim, 1, bias=False)
+            for param in self.prior_out.parameters():
+                param.requires_grad = False
 
         self.hyper_out = HyperLinear(
             noise_dim,
             feature_dim,
             prior_scale=prior_scale,
             posterior_scale=posterior_scale,
-            use_bias=False,
+            use_bias=not feature_sg,
             device=device,
         )
 
@@ -247,17 +248,18 @@ class HyperNet(nn.Module):
             x = torch.as_tensor(x, device=self.device)
         if isinstance(z, np.ndarray):
             z = torch.as_tensor(z, device=self.device)
-        # z = torch.as_tensor(z, device=self.device, dtype=torch.float32)
-        # x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
         logits = self.basedmodel(x)
         prior_logits = self.priormodel(x)
-        based_out = self.basedout(logits)
-        prior_out = self.priorout(prior_logits)
-        out = self.posterior_scale * based_out + self.prior_scale * prior_out
+
         if self.feature_sg:
+            based_out = self.based_out(logits)
+            prior_out = self.prior_out(prior_logits)
+            out = self.posterior_scale * based_out + self.prior_scale * prior_out
             logits = logits.detach()
-        hyper_out = self.hyper_out(z, logits, prior_logits)
-        if len(z.shape) == 2:
-            out = out.squeeze(-1)
-        out = out + hyper_out
+            hyper_out = self.hyper_out(z, logits, prior_logits)
+            if len(z.shape) == 2:
+                out = out.squeeze(-1)
+            out = out + hyper_out
+        else:
+            out = self.hyper_out(z, logits, prior_logits)
         return out

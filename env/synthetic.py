@@ -71,7 +71,10 @@ class SyntheticNonlinModel:
         self.n_actions = n_actions
         self.n_features = n_features
         self.sub_actions = n_actions
-        self.all_actions = all_actions or n_actions
+        if all_actions is None or resample_feature:
+            self.all_actions = n_actions
+        else:
+            self.all_actions = all_actions
 
         # feture
         self.set_feature()
