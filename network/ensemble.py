@@ -25,7 +25,6 @@ class EnsembleNet(nn.Module):
         hidden_sizes: Sequence[int] = (),
         ensemble_sizes: Sequence[int] = (),
         noise_dim: int = 2,
-        out_bias: bool = True,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         device: Union[str, int, torch.device] = "cpu",
@@ -34,7 +33,7 @@ class EnsembleNet(nn.Module):
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
         self.out = nn.ModuleList(
             [
-                mlp(hidden_sizes[-1], 1, ensemble_sizes, out_bias)
+                mlp(hidden_sizes[-1], 1, ensemble_sizes)
                 for _ in range(noise_dim)
             ]
         )
@@ -42,7 +41,7 @@ class EnsembleNet(nn.Module):
             self.priormodel = mlp(in_features, 0, hidden_sizes)
             self.prior_out = nn.ModuleList(
                 [
-                    mlp(hidden_sizes[-1], 1, ensemble_sizes, out_bias)
+                    mlp(hidden_sizes[-1], 1, ensemble_sizes)
                     for _ in range(noise_dim)
                 ]
             )

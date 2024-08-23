@@ -15,7 +15,7 @@ np.random.seed(2024)
 def get_args():
     parser = argparse.ArgumentParser()
     # environment config
-    parser.add_argument("--game", type=str, default="Synthetic-v4")
+    parser.add_argument("--game", type=str, default="Synthetic-v1")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--n-features", type=int, default=50)
@@ -31,29 +31,35 @@ def get_args():
     parser.add_argument("--action-noise", type=str, default="gs")
     parser.add_argument("--update-noise", type=str, default="pn")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--prior-scale", type=float, default=5.0)
-    parser.add_argument("--posterior-scale", type=float, default=5.0)
+    parser.add_argument("--prior-scale", type=float, default=1.0)
+    parser.add_argument("--posterior-scale", type=float, default=1.0)
+    parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
     # model config
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
-    parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
     # optimizer config
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
-    parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--lr", type=float, default=0.0001)
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--based-weight-decay", type=float, default=0.0)
+    parser.add_argument("--based-weight-decay", type=float, default=0.01)
     parser.add_argument("--hyper-weight-decay", type=float, default=0.01)
     # buffer config
     parser.add_argument("--buffer-size", type=int, default=None)
     # update config
     parser.add_argument("--update-start", type=int, default=128)
-    parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--update-freq", type=int, default=4)
+    parser.add_argument("--update-num", type=int, default=4)
+    parser.add_argument("--update-freq", type=int, default=1)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
     parser.add_argument("--log-dir", type=str, default="./results/bandit")
     args = parser.parse_known_args()[0]
+    # if args.game == "Synthetic-v1":
+    #     args.prior_scale = 10.0
+    #     args.lr = 0.0001
+    # elif args.game == "Synthetic-v4":
+    #     args.prior_scale = 1.0
+    #     args.lr = 0.00001
     return args
 
 
@@ -73,8 +79,8 @@ based_param = {
     "buffer_noise": args.buffer_noise,
     "prior_scale": args.prior_scale,
     "posterior_scale": args.posterior_scale,
+    "feature_sg": args.feature_sg,
     "hidden_sizes": args.hidden_sizes,
-    "out_bias": args.out_bias,
     "optim": args.optim,
     "lr": args.lr,
     "batch_size": args.batch_size,
@@ -103,7 +109,10 @@ param = {
         "update_noise": "oh",
         "buffer_noise": "gs",
     },
-    "LMCTS": {**based_param},
+    "LMCTS": {
+        **based_param,
+        "prior_scale": 0.0
+    },
 }
 
 methods = [args.method]
@@ -120,6 +129,8 @@ game_config = {
     "Synthetic-v2": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
     "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": 0.0},
     "Synthetic-v4": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v5": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v6": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
     "RealData-v1": {**base_config},
     "RealData-v2": {**base_config},
     "RealData-v3": {**base_config},

@@ -94,8 +94,8 @@ class HyperSolution:
         update_noise: str = "pn",
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
+        feature_sg: bool = True,
         hidden_sizes: Sequence[int] = (),
-        out_bias: bool = True,
         class_num: int = 1,
         optim: str = "Adam",
         lr: float = 0.01,
@@ -117,9 +117,9 @@ class HyperSolution:
         self.update_noise = update_noise
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
+        self.feature_sg = feature_sg
 
         self.hidden_sizes = hidden_sizes
-        self.out_bias = out_bias
         self.class_num = class_num
 
         self.optim = optim
@@ -150,13 +150,12 @@ class HyperSolution:
         }
         if self.model_type == "hyper":
             Net = HyperNet
-            model_param.update({"hyper_bias": self.out_bias})
+            model_param.update({"feature_sg": self.feature_sg})
         elif self.model_type == "epinet":
             model_param.update({"class_num": self.class_num})
             Net = EpiNet
         elif self.model_type == "ensemble":
             Net = EnsembleNet
-            model_param.update({"out_bias": self.out_bias})
         else:
             raise NotImplementedError
         self.model = Net(**model_param).to(self.device)
@@ -189,7 +188,7 @@ class HyperSolution:
                 "params": (
                     p
                     for name, p in self.model.named_parameters()
-                    if "out" in name and "prior" not in name
+                    if "based" not in name and "prior" not in name
                 ),
                 "weight_decay": self.hyper_weight_decay,
             },

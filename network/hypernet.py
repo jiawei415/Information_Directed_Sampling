@@ -197,11 +197,6 @@ class HyperLinear(nn.Module):
         out = self.posterior_scale * out + self.prior_scale * prior_out
         return out
 
-    def regularization(self, z):
-        theta = self.hyper_weight(z)
-        reg_loss = theta.pow(2).mean()
-        return reg_loss
-
     def get_thetas(self, z):
         theta = self.hyper_weight(z)
         prior_theta = self.prior_weight(z)
@@ -217,7 +212,7 @@ class HyperNet(nn.Module):
         noise_dim: int = 2,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
-        hyper_bias: bool = True,
+        feature_sg: bool = True,
         device: Union[str, int, torch.device] = "cpu",
     ):
         super().__init__()
@@ -226,15 +221,25 @@ class HyperNet(nn.Module):
         for param in self.priormodel.parameters():
             param.requires_grad = False
 
-        hyper_out_features = in_features if len(hidden_sizes) == 0 else hidden_sizes[-1]
-        self.out = HyperLinear(
+        feature_dim = in_features if len(hidden_sizes) == 0 else hidden_sizes[-1]
+
+        self.basedout = nn.Linear(feature_dim, 1, bias=False)
+        self.priorout = nn.Linear(feature_dim, 1, bias=False)
+        for param in self.priorout.parameters():
+            param.requires_grad = False
+
+        self.hyper_out = HyperLinear(
             noise_dim,
-            hyper_out_features,
+            feature_dim,
             prior_scale=prior_scale,
             posterior_scale=posterior_scale,
-            use_bias=hyper_bias,
+            use_bias=False,
             device=device,
         )
+
+        self.prior_scale = prior_scale
+        self.posterior_scale = posterior_scale
+        self.feature_sg = feature_sg
         self.device = device
 
     def forward(self, z, x):
@@ -246,9 +251,13 @@ class HyperNet(nn.Module):
         # x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
         logits = self.basedmodel(x)
         prior_logits = self.priormodel(x)
-        out = self.out(z, logits, prior_logits)
+        based_out = self.basedout(logits)
+        prior_out = self.priorout(prior_logits)
+        out = self.posterior_scale * based_out + self.prior_scale * prior_out
+        if self.feature_sg:
+            logits = logits.detach()
+        hyper_out = self.hyper_out(z, logits, prior_logits)
+        if len(z.shape) == 2:
+            out = out.squeeze(-1)
+        out = out + hyper_out
         return out
-
-    def regularization(self, z):
-        # z = torch.as_tensor(z, device=self.device, dtype=torch.float32)
-        return self.out.regularization(z)
