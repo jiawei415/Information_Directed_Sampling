@@ -100,6 +100,20 @@ class SyntheticNonlinModel:
             # neural regression reward
             self.set_reward_model(n_features, 1, prior_random_state)
             self.reward_fn = getattr(self, "reward_fn4")
+        elif reward_version == "v5":
+            # quadratic reward from lmcts
+            self.reward_fn = getattr(self, "reward_fn5")
+            theta = sigma * self.prior_random.standard_normal(
+                size=n_features, dtype=np.float32
+            )
+            self.real_theta = theta / np.linalg.norm(theta)
+        elif reward_version == "v6":
+            # cosine reward
+            self.reward_fn = getattr(self, "reward_fn6")
+            theta = sigma * self.prior_random.standard_normal(
+                size=n_features, dtype=np.float32
+            )
+            self.real_theta = theta / np.linalg.norm(theta)
         else:
             raise NotImplementedError
         self.set_reward()
@@ -113,7 +127,7 @@ class SyntheticNonlinModel:
         x = self.prior_random.standard_normal(
             size=(self.all_actions, self.n_features), dtype=np.float32
         )
-        x /= np.linalg.norm(x, axis=1, keepdims=True)
+        x /= np.linalg.norm(x, axis=-1, keepdims=True)
         self.all_features = x
 
     def set_reward(self):
@@ -155,6 +169,14 @@ class SyntheticNonlinModel:
 
     def reward_fn4(self, feature):
         reward = self.reward_model(feature)
+        return reward
+
+    def reward_fn5(self, feature):
+        reward = 10 * (feature @ self.real_theta) ** 2
+        return reward
+
+    def reward_fn6(self, feature):
+        reward = np.cos(3 * feature @ self.real_theta)
         return reward
 
     def reward(self, arm):
