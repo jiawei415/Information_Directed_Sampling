@@ -247,7 +247,6 @@ class HyperNet(nn.Module):
         if isinstance(z, np.ndarray):
             z = torch.as_tensor(z, device=self.device)
         logits = self.basedmodel(x)
-        prior_logits = self.priormodel(x)
 
         if self.feature_sg:
             based_out = self.based_out(logits)
@@ -257,5 +256,6 @@ class HyperNet(nn.Module):
             hyper_out = self.hyper_out(z, logits, logits)
             out = based_out + hyper_out
         else:
+            prior_logits = self.priormodel(x)
             out = self.hyper_out(z, logits, prior_logits)
         return out
