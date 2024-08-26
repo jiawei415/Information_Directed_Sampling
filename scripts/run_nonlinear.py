@@ -41,8 +41,7 @@ def get_args():
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--lr", type=float, default=0.0001)
     parser.add_argument("--batch-size", type=int, default=128)
-    parser.add_argument("--based-weight-decay", type=float, default=0.01)
-    parser.add_argument("--hyper-weight-decay", type=float, default=0.01)
+    parser.add_argument("--weight-decay", type=float, default=0.01)
     # buffer config
     parser.add_argument("--buffer-size", type=int, default=None)
     # update config
@@ -84,8 +83,7 @@ based_param = {
     "optim": args.optim,
     "lr": args.lr,
     "batch_size": args.batch_size,
-    "based_weight_decay": args.based_weight_decay,
-    "hyper_weight_decay": args.hyper_weight_decay,
+    "weight_decay": args.weight_decay,
     "update_start": args.update_start,
     "update_num": args.update_num,
     "update_freq": args.update_freq,
@@ -111,7 +109,7 @@ param = {
     },
     "LMCTS": {
         **based_param,
-        "prior_scale": 0.0
+        "prior_scale": 0.0,
     },
 }
 

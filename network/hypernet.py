@@ -217,17 +217,15 @@ class HyperNet(nn.Module):
     ):
         super().__init__()
         self.basedmodel = mlp(in_features, hidden_sizes)
-        self.priormodel = mlp(in_features, hidden_sizes)
-        for param in self.priormodel.parameters():
-            param.requires_grad = False
+        if not feature_sg:
+            self.priormodel = mlp(in_features, hidden_sizes)
+            for param in self.priormodel.parameters():
+                param.requires_grad = False
 
         feature_dim = in_features if len(hidden_sizes) == 0 else hidden_sizes[-1]
 
         if feature_sg:
             self.based_out = nn.Linear(feature_dim, 1, bias=False)
-            self.prior_out = nn.Linear(feature_dim, 1, bias=False)
-            for param in self.prior_out.parameters():
-                param.requires_grad = False
 
         self.hyper_out = HyperLinear(
             noise_dim,
@@ -253,13 +251,11 @@ class HyperNet(nn.Module):
 
         if self.feature_sg:
             based_out = self.based_out(logits)
-            prior_out = self.prior_out(prior_logits)
-            out = self.posterior_scale * based_out + self.prior_scale * prior_out
-            logits = logits.detach()
-            hyper_out = self.hyper_out(z, logits, prior_logits)
             if len(z.shape) == 2:
-                out = out.squeeze(-1)
-            out = out + hyper_out
+                based_out = based_out.squeeze(-1)
+            logits = logits.detach()
+            hyper_out = self.hyper_out(z, logits, logits)
+            out = based_out + hyper_out
         else:
             out = self.hyper_out(z, logits, prior_logits)
         return out
