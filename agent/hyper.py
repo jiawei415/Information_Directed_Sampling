@@ -340,7 +340,7 @@ class HyperMAB:
             batch_size=batch_size,
             weight_decay=weight_decay,
             buffer_size=buffer_size,
-            model_type="hyper",
+            model_type="epinet",
             logger=logger,
         )
 
