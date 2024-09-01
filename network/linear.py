@@ -9,10 +9,10 @@ def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
     if len(hidden_sizes) == 0:
         return nn.Linear(inp_dim, out_dim, bias=bias)
     model = [nn.Linear(inp_dim, hidden_sizes[0], bias=bias)]
-    model += [nn.ReLU(inplace=True)]
+    model += [nn.LeakyReLU()]
     for i in range(1, len(hidden_sizes)):
         model += [nn.Linear(hidden_sizes[i - 1], hidden_sizes[i], bias=bias)]
-        model += [nn.ReLU(inplace=True)]
+        model += [nn.LeakyReLU()]
     if out_dim != 0:
         model += [nn.Linear(hidden_sizes[-1], out_dim, bias=bias)]
     return nn.Sequential(*model)
@@ -37,7 +37,7 @@ class LinearNet(torch.nn.Module):
         self.posterior_scale = posterior_scale
         self.device = device
 
-        self.reset_parameters()
+        # self.reset_parameters()
 
     def reset_parameters(self):
         for name, param in self.basedmodel.named_parameters():

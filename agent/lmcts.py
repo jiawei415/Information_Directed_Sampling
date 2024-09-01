@@ -89,6 +89,9 @@ class LangevinMC(Optimizer):
 
 
 class LMCTS(HyperSolution):
+    def __init__(self, beta_inv=0.01, **kwargs):
+        self.beta_inv = beta_inv
+        super(LMCTS, self).__init__(**kwargs)
 
     def init_buffer(self):
         buffer_shape = {"f": (self.feature_dim,), "r": (), }
@@ -110,7 +113,7 @@ class LMCTS(HyperSolution):
             f"Network parameters: {sum(param.numel() for param in self.model.parameters() if param.requires_grad)}"
         )
         # init optimizer
-        beta_inv = 1e-7 * self.feature_dim * np.log(self.buffer_size)
+        beta_inv = self.beta_inv * self.feature_dim * np.log(self.buffer_size)
         self.optimizer = LangevinMC(
             self.model.parameters(),
             lr=self.lr,
@@ -133,9 +136,8 @@ class LMCTS(HyperSolution):
         r_batch = torch.FloatTensor(r_batch).to(self.device)
 
         predict = self.model(f_batch)
-        diff = r_batch.unsqueeze(-1) - predict
-        diff = diff.pow(2).mean(-1)
-        loss = diff.mean()
+        diff = r_batch - predict
+        loss = diff.pow(2).mean()
 
         self.optimizer.zero_grad()
         loss.backward()

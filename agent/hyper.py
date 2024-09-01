@@ -247,6 +247,7 @@ class HyperMAB:
         update_num=2,
         update_start=32,
         update_freq=1,
+        log_interval=1000,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -272,7 +273,7 @@ class HyperMAB:
             logger=logger,
         )
 
-        log_interval = T // 1000
+        # log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
@@ -318,6 +319,7 @@ class HyperMAB:
         update_num=2,
         update_start=32,
         update_freq=1,
+        log_interval=1000,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -344,7 +346,7 @@ class HyperMAB:
             logger=logger,
         )
 
-        log_interval = T // 1000
+        # log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
@@ -391,6 +393,7 @@ class HyperMAB:
         update_num=2,
         update_start=32,
         update_freq=1,
+        log_interval=1000,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -416,7 +419,7 @@ class HyperMAB:
             logger=logger,
         )
 
-        log_interval = T // 1000
+        # log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
@@ -460,12 +463,14 @@ class HyperMAB:
         update_num=2,
         update_start=32,
         update_freq=1,
+        beta_inv=0.01,
+        log_interval=1000,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
         model = LMCTS(
-            self.n_a,
-            self.d,
+            n_action=self.n_a,
+            n_feature=self.d,
             noise_dim=noise_dim,
             NpS=NpS,
             noise_coef=z_coef,
@@ -481,11 +486,12 @@ class HyperMAB:
             weight_decay=weight_decay,
             buffer_size=buffer_size,
             model_type="linear",
+            beta_inv=beta_inv,
             logger=logger,
         )
 
         update_step = 0
-        log_interval = T // 1000
+        # log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
