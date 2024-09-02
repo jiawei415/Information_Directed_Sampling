@@ -359,7 +359,16 @@ def FiniteContextHyperMAB_expe(
         title = f"Synthetic Bandit Model  - n_arms: {n_arms} - n_features: {n_features} - reward: {rew_v}"
     elif problem.startswith("RealData"):
         dn = problem.split("-")[-1]
-        models = [HyperMAB(Bandit_multi(dn)) for _ in range(n_expe)]
+        models = [
+            HyperMAB(
+                Bandit_multi(
+                    dn,
+                    freq_task=freq_task,
+                    eta=kwargs.get("eta", 0.1),
+                )
+            )
+            for _ in range(n_expe)
+        ]
         title = f"Real Bandit Model  - {dn}"
     else:
         raise NotImplementedError

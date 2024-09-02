@@ -4,16 +4,16 @@ from sklearn.preprocessing import OrdinalEncoder
 from sklearn.preprocessing import normalize
 import numpy as np
 
-DATA_NAMES = {"v1": "mnist", "v2": "mushroom", "v3": "adult", "v4": "covertype"}
-
+DATA_HOME = "/apdcephfs/share_1563664/ztjiaweixu/datasets/scikit_learn_data"
+DATA_NAMES = {"v1": "shuttle", "v2": "MagicTelescope", "v3": "mushroom", "v4": "covertype"}
 
 class Bandit_multi:
-    def __init__(self, name_id, is_shuffle=True, eta=0.1, sigma=1):
+    def __init__(self, name_id, is_shuffle=True, freq_task=True, eta=0.1, sigma=1):
         name = DATA_NAMES[name_id]
-        prior_random_state = 2022
+        prior_random_state = 2022 if freq_task else np.random.randint(1, 312414)
         reward_random_state = np.random.randint(1, 312414)
-        self.prior_random = np.random.RandomState(prior_random_state)
-        self.reward_random = np.random.RandomState(reward_random_state)
+        self.prior_random = np.random.default_rng(prior_random_state)
+        self.reward_random = np.random.default_rng(reward_random_state)
         # Fetch data
         if name == "mnist":
             X, y = fetch_openml("mnist_784", version=1, return_X_y=True)
@@ -21,7 +21,7 @@ class Bandit_multi:
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "mushroom":
-            X, y = fetch_openml("mushroom", version=1, return_X_y=True)
+            X, y = fetch_openml("mushroom", version=1, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
@@ -31,7 +31,7 @@ class Bandit_multi:
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "covertype":
-            X, y = fetch_openml("covertype", version=3, return_X_y=True)
+            X, y = fetch_openml("covertype", version=3, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
@@ -46,12 +46,12 @@ class Bandit_multi:
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "MagicTelescope":
-            X, y = fetch_openml("MagicTelescope", version=1, return_X_y=True)
+            X, y = fetch_openml("MagicTelescope", version=1, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "shuttle":
-            X, y = fetch_openml("shuttle", version=1, return_X_y=True)
+            X, y = fetch_openml("shuttle", version=1, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
@@ -62,6 +62,7 @@ class Bandit_multi:
             self.X, self.y = shuffle(X, y, random_state=prior_random_state)
         else:
             self.X, self.y = X, y
+        self.X = self.X.astype(np.float32)
         # generate one_hot coding:
         self.y_arm = OrdinalEncoder(dtype=np.int).fit_transform(self.y.reshape((-1, 1)))
         # cursor and other variables
@@ -86,13 +87,13 @@ class Bandit_multi:
         # assert self.cursor < self.size
         if self.cursor >= self.size:
             self.cursor = 0
-        X = np.zeros((self.n_arm, self.dim))
+        X = np.zeros((self.n_arm, self.dim), dtype=np.float32)
         for a in range(self.n_arm):
             X[a, a * self.act_dim : a * self.act_dim + self.act_dim] = self.X[
                 self.cursor
             ]
         arm = self.y_arm[self.cursor][0]
-        rwd = np.zeros((self.n_arm,))
+        rwd = np.zeros((self.n_arm,), dtype=np.float32)
         rwd[arm] = 1
         self.cursor += 1
         self.features = X
@@ -100,7 +101,9 @@ class Bandit_multi:
 
     def reward(self, arm):
         reward = self.sub_rewards[arm]
-        noise = self.reward_random.normal(0, self.eta, 1)
+        noise = (
+            self.reward_random.standard_normal(dtype=np.float32) * self.eta
+        )
         return reward + noise
 
     def regret(self, arm):
