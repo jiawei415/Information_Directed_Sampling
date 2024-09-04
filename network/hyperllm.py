@@ -189,11 +189,11 @@ class EnsembleLayer(nn.Module):
 class HyperLLM(nn.Module):
     def __init__(
         self,
-        noise_dim: int = 2,
         action_num: int = 2,
+        noise_dim: int = 2,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
-        out_bias: bool = True,
+        feature_sg: bool = True,
         head_name: str = "hyper",
         llm_name: str = "gpt2",
         use_pretrained: bool = True,
@@ -230,17 +230,18 @@ class HyperLLM(nn.Module):
                 action_num,
                 prior_scale=prior_scale,
                 posterior_scale=posterior_scale,
-                use_bias=out_bias,
                 device=device,
             )
         elif head_name == "hyper":
+            if feature_sg:
+                self.based_out = nn.Linear(feature_dim, action_num, bias=False)
             self.out = HyperLinear(
                 noise_dim,
                 feature_dim,
                 action_dim=action_num,
                 prior_scale=prior_scale,
                 posterior_scale=posterior_scale,
-                use_bias=out_bias,
+                use_bias=not feature_sg,
                 device=device,
             )
         elif head_name == "ensemble":
@@ -250,12 +251,12 @@ class HyperLLM(nn.Module):
                 noise_dim,
                 prior_scale=prior_scale,
                 posterior_scale=posterior_scale,
-                use_bias=out_bias,
                 device=device,
             )
         else:
             raise ValueError(f"Unknown head_name: {head_name}")
 
+        self.feature_sg = feature_sg
         self.num_padding_at_beginning = 0
         self.fine_tune = fine_tune
         self.head_name = head_name
@@ -274,7 +275,14 @@ class HyperLLM(nn.Module):
         if self.head_name == "linear":
             out = self.out(logits, prior_logits)
         elif self.head_name == "hyper":
-            out = self.out(noise, logits, prior_logits)
+            if self.feature_sg:
+                based_out = self.based_out(logits)
+                based_out = based_out.unsqueeze(1)
+                logits = logits.detach()
+                hyper_out = self.out(noise, logits, logits)
+                out = based_out + hyper_out
+            else:
+                out = self.out(noise, logits, prior_logits)
         elif self.head_name == "ensemble":
             out = self.out(noise, logits, prior_logits)
         # out: [batch_size, NpS, seq_len, action_num]

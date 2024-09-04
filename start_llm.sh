@@ -17,8 +17,7 @@ update_start=20
 update_num=1
 update_freq=1
 lr=1e-5
-hyper_weight_decay=0.01
-based_weight_decay=0.01
+weight_decay=0.01
 prior_scale=0.1
 posterior_scale=0.1
 fine_tune=1
@@ -37,8 +36,7 @@ do
         tag=$(date "+%Y%m%d%H%M%S")
         python -m scripts.run_llm --game=${game} --seed=${seed} --n-features=${n_features} --n-arms=${n_arms} \
             --noise-dim=${noise_dim} --NpS=${NpS} --model-type=${model_type} --llm-name=${llm_name} \
-            --hyper-weight-decay=${hyper_weight_decay} --based-weight-decay=${based_weight_decay} \
-            --batch-size=${batch_size} --lr=${lr} \
+            --weight-decay=${weight_decay} --batch-size=${batch_size} --lr=${lr} \
             --update-start=${update_start} --update-num=${update_num} --update-freq=${update_freq} \
             --prior-scale=${prior_scale} --posterior-scale=${posterior_scale} --fine-tune=${fine_tune} \
             --action-noise=${action_noise} --update-noise=${update_noise} --buffer-noise=${buffer_noise} \

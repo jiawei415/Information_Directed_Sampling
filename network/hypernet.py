@@ -236,8 +236,6 @@ class HyperNet(nn.Module):
             device=device,
         )
 
-        self.prior_scale = prior_scale
-        self.posterior_scale = posterior_scale
         self.feature_sg = feature_sg
         self.device = device
 

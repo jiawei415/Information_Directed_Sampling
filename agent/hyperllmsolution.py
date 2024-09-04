@@ -8,8 +8,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
+from logger import Logger
 from utils import sample_action_noise, sample_update_noise, sample_buffer_noise
-
 from network import HyperLLM
 
 
@@ -113,53 +113,58 @@ class ReplayBuffer:
 class HyperLLMSolution:
     def __init__(
         self,
-        noise_dim: int,
         n_action: int,
         n_feature: int,
-        action_num: int = 2,
-        prior_scale: float = 1.0,
-        posterior_scale: float = 1.0,
-        batch_size: int = 32,
-        lr: float = 0.01,
-        optim: str = "Adam",
-        based_weight_decay: float = 0.01,
-        hyper_weight_decay: float = 0.01,
-        noise_coef: float = 0.01,
-        buffer_size: int = 10000,
-        buffer_noise: str = "sp",
+        action_num: int=2,
+        noise_dim: int=4,
         NpS: int = 20,
+        noise_coef: float = 0.01,
+        buffer_noise: str = "sp",
         action_noise: str = "sgs",
         update_noise: str = "pn",
+        prior_scale: float = 1.0,
+        posterior_scale: float = 1.0,
+        feature_sg: bool = True,
+        optim: str = "Adam",
+        lr: float = 0.01,
+        batch_size: int = 32,
+        weight_decay: float = 0.01,
+        buffer_size: int = 10000,
         model_type: str = "hyper",
         llm_name: str = "gpt2",
         use_pretrained: bool = True,
         use_lora: bool = False,
         fine_tune: bool = False,
-        out_bias: bool = True,
+        logger: Logger = None,
     ):
-        self.noise_dim = noise_dim
         self.n_action = n_action
         self.n_feature = n_feature
         self.action_num = action_num
-        self.prior_scale = prior_scale
-        self.posterior_scale = posterior_scale
-        self.lr = lr
-        self.batch_size = batch_size
+
+        self.noise_dim = noise_dim
         self.NpS = NpS
-        self.optim = optim
-        self.based_weight_decay = based_weight_decay
-        self.hyper_weight_decay = hyper_weight_decay
         self.noise_coef = noise_coef
-        self.buffer_size = buffer_size
+        self.buffer_noise = buffer_noise
         self.action_noise = action_noise
         self.update_noise = update_noise
-        self.buffer_noise = buffer_noise
-        self.model_type = model_type
+        self.prior_scale = prior_scale
+        self.posterior_scale = posterior_scale
+        self.feature_sg = feature_sg
+
+        self.optim = optim
+        self.lr = lr
+        self.batch_size = batch_size
+        self.weight_decay = weight_decay
+
+
         self.llm_name = llm_name
         self.use_pretrained = use_pretrained
         self.use_lora = use_lora
         self.fine_tune = fine_tune
-        self.out_bias = out_bias
+
+        self.buffer_size = buffer_size
+        self.model_type = model_type
+        self.logger = logger
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.init_model_optimizer()
@@ -179,7 +184,6 @@ class HyperLLMSolution:
             "use_pretrained": self.use_pretrained,
             "use_lora": self.use_lora,
             "fine_tune": self.fine_tune,
-            "out_bias": self.out_bias,
             "device": self.device,
         }
         self.model = HyperLLM(**model_param).to(self.device)
@@ -193,34 +197,17 @@ class HyperLLMSolution:
             else:
                 frozen_param_size += param.numel()
                 param_dict["Frozen"].append(name)
-        pprint(param_dict)
-        print(f"\nNetwork structure:\n{str(self.model)}")
-        print(
+        self.logger.info(param_dict)
+        self.logger.info(f"\nNetwork structure:\n{str(self.model)}")
+        self.logger.info(
             f"Network parameters: Trainable {trainable_param_size}, Frozen {frozen_param_size}"
         )
         # init optimizer
-        trainable_params = [
-            {
-                "params": (
-                    p
-                    for name, p in self.model.named_parameters()
-                    if "transformer" in name and p.requires_grad
-                ),
-                "weight_decay": self.based_weight_decay,
-            },
-            {
-                "params": (
-                    p
-                    for name, p in self.model.named_parameters()
-                    if "out" in name and p.requires_grad
-                ),
-                "weight_decay": self.hyper_weight_decay,
-            },
-        ]
+        trainable_params = filter(lambda p: p.requires_grad, self.model.parameters())
         if self.optim == "Adam":
-            self.optimizer = torch.optim.Adam(trainable_params, lr=self.lr)
+            self.optimizer = torch.optim.Adam(trainable_params, lr=self.lr, weight_decay=self.weight_decay)
         elif self.optim == "SGD":
-            self.optimizer = torch.optim.SGD(trainable_params, lr=self.lr, momentum=0.9)
+            self.optimizer = torch.optim.SGD(trainable_params, lr=self.lr, weight_decay=self.weight_decay, momentum=0.9)
         else:
             raise NotImplementedError
 
@@ -275,7 +262,7 @@ class HyperLLMSolution:
         loss = diff.mean()
 
         for param_group in self.optimizer.param_groups:
-            param_group["weight_decay"] = self.hyper_weight_decay / len(self.buffer)
+            param_group["weight_decay"] = self.weight_decay / len(self.buffer)
 
         self.optimizer.zero_grad()
         loss.backward()

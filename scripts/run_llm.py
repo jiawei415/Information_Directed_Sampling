@@ -30,22 +30,15 @@ def get_args():
     # algorithm config
     parser.add_argument("--method", type=str, default="LLM")
     parser.add_argument("--noise-dim", type=int, default=4)
-    parser.add_argument("--lr", type=float, default=1e-5)
-    parser.add_argument("--based-weight-decay", type=float, default=0.01)
-    parser.add_argument("--hyper-weight-decay", type=float, default=0.01)
-    parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
-    parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--NpS", type=int, default=16)
+    parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--action-noise", type=str, default="pm")
     parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--buffer-size", type=int, default=100000)
-    parser.add_argument("--batch-size", type=int, default=2)
-    parser.add_argument("--update-start", type=int, default=2)
-    parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--update-freq", type=int, default=1)
-    parser.add_argument("--posterior-scale", type=float, default=0.1)
     parser.add_argument("--prior-scale", type=float, default=0.1)
+    parser.add_argument("--posterior-scale", type=float, default=0.1)
+    parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
+    # model config
     parser.add_argument(
         "--model-type",
         type=str,
@@ -55,13 +48,23 @@ def get_args():
     parser.add_argument(
         "--llm-name",
         type=str,
-        default="gpt2",
+        default="pythia14m",
         choices=["gpt2", "gpt2-medium", "gpt2-large", "pythia14m"],
     )
     parser.add_argument("--use-pretrained", type=int, default=1, choices=[0, 1])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=1, choices=[0, 1])
-    parser.add_argument("--out-bias", type=int, default=1, choices=[0, 1])
+    # optimizer config
+    parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
+    parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--weight-decay", type=float, default=0.01)
+    # buffer config
+    parser.add_argument("--buffer-size", type=int, default=100000)
+    # update config
+    parser.add_argument("--update-start", type=int, default=2)
+    parser.add_argument("--update-num", type=int, default=1)
+    parser.add_argument("--update-freq", type=int, default=1)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
@@ -72,9 +75,9 @@ def get_args():
 
 
 args = get_args()
-game = args.game
-dir = f"{game.lower()}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
-path = os.path.expanduser(os.path.join(args.log_dir, game, dir))
+
+dir = f"{args.game.lower()}_{args.model_type}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+path = os.path.expanduser(os.path.join(args.log_dir, args.game, dir))
 os.makedirs(path, exist_ok=True)
 
 noise_param = {
@@ -95,28 +98,27 @@ param = {
     "LLM": {
         "log_interval": args.log_interval,
         "noise_dim": args.noise_dim,
-        "lr": args.lr,
-        "based_weight_decay": args.based_weight_decay,
-        "hyper_weight_decay": args.hyper_weight_decay,
-        "z_coef": args.z_coef,
-        "optim": args.optim,
-        "update_start": args.update_start,
-        "update_num": args.update_num,
-        "update_freq": args.update_freq,
-        "batch_size": args.batch_size,
-        "posterior_scale": args.posterior_scale,
-        "prior_scale": args.prior_scale,
         "NpS": args.NpS,
+        "z_coef": args.z_coef,
         "action_noise": args.action_noise,
         "update_noise": args.update_noise,
         "buffer_noise": args.buffer_noise,
+        "prior_scale": args.prior_scale,
+        "posterior_scale": args.posterior_scale,
+        "feature_sg": args.feature_sg,
+        "optim": args.optim,
+        "lr": args.lr,
+        "batch_size": args.batch_size,
+        "weight_decay": args.weight_decay,
+        "update_start": args.update_start,
+        "update_num": args.update_num,
+        "update_freq": args.update_freq,
         "buffer_size": args.buffer_size,
         "model_type": args.model_type,
         "llm_name": args.llm_name,
         "use_pretrained": args.use_pretrained,
         "use_lora": args.use_lora,
         "fine_tune": args.fine_tune,
-        "out_bias": args.out_bias,
         **noise_param[args.model_type],
     }
 }
@@ -137,7 +139,7 @@ with open(os.path.join(path, "config.json"), "wt") as f:
         json.dumps(
             {
                 "methods_param": methods_param,
-                "game_config": game_config[game],
+                "game_config": game_config[args.game],
                 "user_config": vars(args),
                 "methods": methods,
                 "labels": utils.mapping_methods_labels,
@@ -167,9 +169,9 @@ expe_params = {
     "labels": labels,
     "colors": colors,
     "path": path,
-    "problem": game,
+    "problem": args.game,
     "seed": args.seed,
-    **game_config[game],
+    **game_config[args.game],
 }
 lin = exp.Textual_expe(**expe_params)
 
