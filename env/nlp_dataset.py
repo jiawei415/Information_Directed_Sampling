@@ -8,10 +8,10 @@ from transformers import AutoTokenizer
 
 class HateSpeechDataset(Dataset):
     def __init__(self, dataset="hatespeech", llm_name="gpt2", max_length=2024):
-        dataset_path = f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{dataset}"
+        dataset_path = f"/apdcephfs_cq10/share_1150325/ztjiaweixu/huggingface/{dataset}"
         self.dataset = load_from_disk(dataset_path)["train"]
         tokenizer_path = (
-            f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{llm_name}/tokenizer"
+            f"/apdcephfs_cq10/share_1150325/ztjiaweixu/huggingface/{llm_name}/"
         )
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
         self.tokenizer.pad_token = self.tokenizer.unk_token

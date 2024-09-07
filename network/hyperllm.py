@@ -202,12 +202,12 @@ class HyperLLM(nn.Module):
         device: str = "cpu",
     ):
         super().__init__()
-        model_path = f"/apdcephfs/share_1563664/ztjiaweixu/huggingface/{llm_name}/model"
+        model_path = f"/apdcephfs_cq10/share_1150325/ztjiaweixu/huggingface/{llm_name}"
         if use_pretrained:
             if "gpt2" in llm_name:
                 self.transformer_model = GPT2Model.from_pretrained(model_path)
                 self.PAD_ID = 50256
-            elif llm_name == "pythia14m":
+            elif llm_name == "pythia-14m":
                 self.transformer_model = GPTNeoXModel.from_pretrained(model_path)
                 self.PAD_ID = 0
         else:
@@ -215,7 +215,7 @@ class HyperLLM(nn.Module):
             if "gpt2" in llm_name:
                 self.transformer_model = GPT2Model(GPT2Config(**config))
                 self.PAD_ID = 50256
-            elif llm_name == "pythia14m":
+            elif llm_name == "pythia-14m":
                 self.transformer_model = GPTNeoXModel(GPTNeoXConfig(**config))
                 self.PAD_ID = 0
 

@@ -34,6 +34,7 @@ def get_args():
     parser.add_argument("--prior-scale", type=float, default=1.0)
     parser.add_argument("--posterior-scale", type=float, default=1.0)
     parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
+    parser.add_argument("--lmcts-beta", type=float, default=0.01)
     # model config
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
@@ -51,14 +52,43 @@ def get_args():
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
-    parser.add_argument("--log-dir", type=str, default="./results/bandit")
+    parser.add_argument("--log-dir", type=str, default="~/results/bandit")
     args = parser.parse_known_args()[0]
-    # if args.game == "Synthetic-v1":
-    #     args.prior_scale = 10.0
-    #     args.lr = 0.0001
-    # elif args.game == "Synthetic-v4":
-    #     args.prior_scale = 1.0
-    #     args.lr = 0.00001
+    if args.game == "Synthetic-v1":
+        args.prior_scale = 10.0
+        args.posterior_scale = 1.0
+        args.update_num = 10
+    elif args.game == "Synthetic-v2":
+        args.prior_scale = 1.0
+        args.posterior_scale = 0.1
+        args.update_num = 4
+    elif args.game == "Synthetic-v4":
+        args.prior_scale = 1.0
+        args.posterior_scale = 1.0
+        args.update_num = 1
+    elif args.game == "Synthetic-v5":
+        args.prior_scale = 1.0
+        args.posterior_scale = 0.1
+        args.update_num = 4
+    elif args.game == "Synthetic-v6":
+        args.prior_scale = 1.0
+        args.posterior_scale = 0.1
+        args.update_num = 4
+    elif args.game == "RealData-v1":
+        args.prior_scale = 0.1
+        args.posterior_scale = 0.1
+        args.update_num = 20
+        args.lr = 0.001
+    elif args.game == "RealData-v3":
+        args.prior_scale = 1.0
+        args.posterior_scale = 0.1
+        args.update_num = 10
+        args.lr = 0.0001
+    elif args.game == "RealData-v4":
+        args.prior_scale = 10.0
+        args.posterior_scale = 1.0
+        args.update_num = 50
+        args.lr = 0.001
     return args
 
 
@@ -110,6 +140,7 @@ param = {
     "LMCTS": {
         **based_param,
         "prior_scale": 0.0,
+        "beta_inv": args.lmcts_beta,
     },
 }
 
@@ -133,6 +164,7 @@ game_config = {
     "RealData-v2": {**base_config},
     "RealData-v3": {**base_config},
     "RealData-v4": {**base_config},
+    "RealData-v5": {**base_config},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:

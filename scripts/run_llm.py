@@ -48,12 +48,12 @@ def get_args():
     parser.add_argument(
         "--llm-name",
         type=str,
-        default="pythia14m",
-        choices=["gpt2", "gpt2-medium", "gpt2-large", "pythia14m"],
+        default="pythia-14m",
+        choices=["gpt2", "gpt2-medium", "gpt2-large", "pythia-14m"],
     )
     parser.add_argument("--use-pretrained", type=int, default=1, choices=[0, 1])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
-    parser.add_argument("--fine-tune", type=int, default=1, choices=[0, 1])
+    parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
     # optimizer config
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--lr", type=float, default=1e-5)
@@ -69,7 +69,7 @@ def get_args():
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
     parser.add_argument("--log-interval", type=int, default=1000)
-    parser.add_argument("--log-dir", type=str, default="./results/bandit")
+    parser.add_argument("--log-dir", type=str, default="~/results/bandit")
     args = parser.parse_known_args()[0]
     return args
 

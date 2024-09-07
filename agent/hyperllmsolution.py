@@ -179,6 +179,7 @@ class HyperLLMSolution:
             "action_num": self.action_num,
             "prior_scale": self.prior_scale,
             "posterior_scale": self.posterior_scale,
+            "feature_sg": self.feature_sg,
             "head_name": self.model_type,
             "llm_name": self.llm_name,
             "use_pretrained": self.use_pretrained,

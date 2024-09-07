@@ -5,7 +5,7 @@ from sklearn.preprocessing import normalize
 import numpy as np
 
 DATA_HOME = "/apdcephfs/share_1563664/ztjiaweixu/datasets/scikit_learn_data"
-DATA_NAMES = {"v1": "shuttle", "v2": "MagicTelescope", "v3": "mushroom", "v4": "covertype"}
+DATA_NAMES = {"v1": "shuttle", "v2": "adult", "v3": "mushroom", "v4": "isolet", "v5": "letter"}
 
 class Bandit_multi:
     def __init__(self, name_id, is_shuffle=True, freq_task=True, eta=0.1, sigma=1):
@@ -26,7 +26,7 @@ class Bandit_multi:
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "adult":
-            X, y = fetch_openml("adult", version=2, return_X_y=True)
+            X, y = fetch_openml("adult", version=2, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
@@ -36,12 +36,12 @@ class Bandit_multi:
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "isolet":
-            X, y = fetch_openml("isolet", version=1, return_X_y=True)
+            X, y = fetch_openml("isolet", version=1, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
         elif name == "letter":
-            X, y = fetch_openml("letter", version=1, return_X_y=True)
+            X, y = fetch_openml("letter", version=1, return_X_y=True, data_home=DATA_HOME)
             # avoid nan, set nan as -1
             X[np.isnan(X)] = -1
             X = normalize(X)
