@@ -26,6 +26,8 @@ def get_args():
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=512)
     parser.add_argument("--n-arms", type=int, default=4)
+    parser.add_argument("--action-num", type=int, default=2)
+    parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
     parser.add_argument("--method", type=str, default="LLM")
@@ -97,6 +99,8 @@ noise_param = {
 param = {
     "LLM": {
         "log_interval": args.log_interval,
+        "action_num": args.action_num,
+        "threshold": args.threshold,
         "noise_dim": args.noise_dim,
         "NpS": args.NpS,
         "z_coef": args.z_coef,

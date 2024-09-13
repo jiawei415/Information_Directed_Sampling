@@ -135,6 +135,8 @@ class HyperMAB:
         T,
         logger,
         log_interval=10,
+        action_num=2,
+        threshold=0.5,
         noise_dim=2,
         NpS=20,
         z_coef=None,
@@ -163,6 +165,8 @@ class HyperMAB:
         model = HyperLLMSolution(
             self.n_a,
             self.d,
+            action_num=action_num,
+            threshold=threshold,
             noise_dim=noise_dim,
             NpS=NpS,
             noise_coef=z_coef,

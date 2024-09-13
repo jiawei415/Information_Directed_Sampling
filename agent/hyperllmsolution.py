@@ -116,9 +116,10 @@ class ReplayBuffer:
 class HyperLLMSolution:
     def __init__(
         self,
-        n_action: int,
+        n_arm: int,
         n_feature: int,
         action_num: int=2,
+        threshold: float=0.5,
         noise_dim: int=4,
         NpS: int = 20,
         noise_coef: float = 0.01,
@@ -140,9 +141,10 @@ class HyperLLMSolution:
         fine_tune: bool = False,
         logger: Logger = None,
     ):
-        self.n_action = n_action
+        self.n_arm = n_arm
         self.n_feature = n_feature
         self.action_num = action_num
+        self.threshold = threshold
 
         self.noise_dim = noise_dim
         self.NpS = NpS
@@ -258,10 +260,13 @@ class HyperLLMSolution:
             # noise for target
             target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
             predict = self.model(update_noise, input_ids, attention_mask)
-            a_one_hot = F.one_hot(a_batch, self.action_num).to(
-                predict.dtype
-            )  # (None, n_a)
-            predict = torch.einsum("bka,ba->bk", predict, a_one_hot)  # (None, NpS)
+            if self.action_num > 1:
+                a_one_hot = F.one_hot(a_batch, self.action_num).to(
+                    predict.dtype
+                )  # (None, n_a)
+                predict = torch.einsum("bka,ba->bk", predict, a_one_hot)  # (None, NpS)
+            else:
+                predict = predict.squeeze(-1)
             target = target_noise.squeeze(-1) + r_batch.unsqueeze(-1)
         diff = (target - predict).pow(2).mean(-1)
         loss = diff.mean()
@@ -282,7 +287,10 @@ class HyperLLMSolution:
             action_noise = self.gen_action_noise(dim=num)
         with torch.no_grad():
             p_a = self.model(action_noise, input_ids, attention_mask)  # .cpu().numpy()
-            a = _random_argmax(p_a)
+            if self.action_num > 1:
+                a = _random_argmax(p_a)
+            else:
+                a = torch.where(p_a > self.threshold, torch.ones_like(p_a), torch.zeros_like(p_a)).squeeze(-1)
         return a.cpu().numpy()
 
     def set_action_noise(self):
