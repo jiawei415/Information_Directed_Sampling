@@ -13,7 +13,7 @@ class HateSpeechDataset(Dataset):
         tokenizer_path = (
             f"/apdcephfs_cq10/share_1150325/ztjiaweixu/huggingface/{llm_name}/"
         )
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, use_fast=True)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, truncation_side='left', use_fast=True)
         self.tokenizer.pad_token = self.tokenizer.unk_token
         self.max_length = max_length
 

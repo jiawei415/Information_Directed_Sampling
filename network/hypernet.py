@@ -212,12 +212,13 @@ class HyperNet(nn.Module):
         noise_dim: int = 2,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
+        based_prior: float = False,
         feature_sg: bool = True,
         device: Union[str, int, torch.device] = "cpu",
     ):
         super().__init__()
         self.basedmodel = mlp(in_features, hidden_sizes)
-        if not feature_sg:
+        if based_prior:
             self.priormodel = mlp(in_features, hidden_sizes)
             for param in self.priormodel.parameters():
                 param.requires_grad = False
@@ -236,6 +237,7 @@ class HyperNet(nn.Module):
             device=device,
         )
 
+        self.based_prior = based_prior
         self.feature_sg = feature_sg
         self.device = device
 
@@ -245,15 +247,18 @@ class HyperNet(nn.Module):
         if isinstance(z, np.ndarray):
             z = torch.as_tensor(z, device=self.device)
         logits = self.basedmodel(x)
+        if self.based_prior:
+            prior_logits = self.priormodel(x)
+        else:
+            prior_logits = logits.detach()
 
         if self.feature_sg:
             based_out = self.based_out(logits)
             if len(z.shape) == 2:
                 based_out = based_out.squeeze(-1)
             logits = logits.detach()
-            hyper_out = self.hyper_out(z, logits, logits)
+            hyper_out = self.hyper_out(z, logits, prior_logits)
             out = based_out + hyper_out
         else:
-            prior_logits = self.priormodel(x)
             out = self.hyper_out(z, logits, prior_logits)
         return out

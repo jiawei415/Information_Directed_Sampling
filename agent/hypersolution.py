@@ -94,6 +94,7 @@ class HyperSolution:
         update_noise: str = "pn",
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
+        based_prior: bool = False,
         feature_sg: bool = True,
         hidden_sizes: Sequence[int] = (),
         class_num: int = 1,
@@ -116,6 +117,7 @@ class HyperSolution:
         self.update_noise = update_noise
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
+        self.based_prior = based_prior
         self.feature_sg = feature_sg
 
         self.hidden_sizes = hidden_sizes
@@ -148,7 +150,10 @@ class HyperSolution:
         }
         if self.model_type == "hyper":
             Net = HyperNet
-            model_param.update({"feature_sg": self.feature_sg})
+            model_param.update({
+                "feature_sg": self.feature_sg,
+                "based_prior": self.based_prior,
+            })
         elif self.model_type == "epinet":
             model_param.update({"class_num": self.class_num})
             Net = EpiNet

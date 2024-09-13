@@ -26,8 +26,10 @@ class ReplayBuffer:
             key: np.empty([buffer_size, *shape], dtype=np.float32)
             for key, shape in buffer_shape.items()
         }
+        self.store_z = "z" in buffer_shape.keys()
+        if self.store_z:
+            self.noise_dim = buffer_shape["z"][-1]
         self.buffer_size = buffer_size
-        self.noise_dim = buffer_shape["z"][-1]
         self.current_size = 0
         self.point = 0
         self.set_buffer_noise(noise_type)
@@ -57,7 +59,7 @@ class ReplayBuffer:
         attention_mask = self.buffers["attention_mask"][index]
         a_data = self.buffers["a"][index]
         r_data = self.buffers["r"][index]
-        z_data = self.buffers["z"][index]
+        z_data = self.buffers["z"][index] if self.store_z else None
         return input_ids, attention_mask, a_data, r_data, z_data
 
     def reset(self):
@@ -68,8 +70,9 @@ class ReplayBuffer:
         idx = self._get_ordered_storage_idx(batch_size)
         for k, v in transition.items():
             self.buffers[k][idx] = v
-        z = self.gen_noise(dim=batch_size) / np.sqrt(self.noise_dim)
-        self.buffers["z"][idx] = z
+        if self.store_z:
+            z = self.gen_noise(dim=batch_size) / np.sqrt(self.noise_dim)
+            self.buffers["z"][idx] = z
 
     def get(self, shuffle=True):
         # get all data in buffer
@@ -234,7 +237,6 @@ class HyperLLMSolution:
         self.buffer.put(transition)
 
     def learn(self, input_ids, attention_mask, a_batch, r_batch, z_batch):
-        z_batch = torch.FloatTensor(z_batch).to(self.device)
         r_batch = torch.FloatTensor(r_batch).to(self.device)
         a_batch = torch.FloatTensor(a_batch).to(dtype=torch.int64, device=self.device)
         input_ids = torch.FloatTensor(input_ids).to(
@@ -244,16 +246,18 @@ class HyperLLMSolution:
             dtype=torch.int64, device=self.device
         )
 
-        # noise for update
-        update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
-        # noise for target
-        target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
-
-        predict = self.model(update_noise, input_ids, attention_mask)
         if self.model_type == "linear":
+            predict = self.model(None, input_ids, attention_mask)
             predict = predict[np.arange(self.batch_size), a_batch]
             target = r_batch
         else:
+            # perturbation noise
+            z_batch = torch.FloatTensor(z_batch).to(self.device)
+            # noise for update
+            update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
+            # noise for target
+            target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
+            predict = self.model(update_noise, input_ids, attention_mask)
             a_one_hot = F.one_hot(a_batch, self.action_num).to(
                 predict.dtype
             )  # (None, n_a)
@@ -272,7 +276,10 @@ class HyperLLMSolution:
         return results
 
     def predict(self, input_ids, attention_mask, num=1):
-        action_noise = self.gen_action_noise(dim=num)
+        if self.model_type == "linear":
+            action_noise = None
+        else:
+            action_noise = self.gen_action_noise(dim=num)
         with torch.no_grad():
             p_a = self.model(action_noise, input_ids, attention_mask)  # .cpu().numpy()
             a = _random_argmax(p_a)

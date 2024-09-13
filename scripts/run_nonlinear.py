@@ -28,11 +28,12 @@ def get_args():
     parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--z-coef", type=float, default=0.01)
-    parser.add_argument("--action-noise", type=str, default="gs")
-    parser.add_argument("--update-noise", type=str, default="pn")
+    parser.add_argument("--action-noise", type=str, default="sp")
+    parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
     parser.add_argument("--prior-scale", type=float, default=1.0)
     parser.add_argument("--posterior-scale", type=float, default=1.0)
+    parser.add_argument("--based-prior", type=int, default=0, choices=[0, 1])
     parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
     parser.add_argument("--lmcts-beta", type=float, default=0.01)
     # model config
@@ -124,6 +125,7 @@ param = {
     "TS": {},
     "Hyper": {
         **based_param,
+        "based_prior": args.based_prior,
     },
     "EpiNet": {
         **based_param,
