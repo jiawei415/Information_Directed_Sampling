@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import loralib as lora
 
-from transformers import GPT2Model, GPT2Config, GPTNeoXModel, GPTNeoXConfig
+from transformers import GPT2LMHeadModel, GPT2Config, GPTNeoXForCausalLM, GPTNeoXConfig
 from .hypernet import HyperLayer
 from .ensemble import mlp
 
@@ -199,29 +199,33 @@ class HyperLLM(nn.Module):
         use_pretrained: bool = True,
         use_lora: bool = False,
         fine_tune: bool = False,
+        last_token: bool = True,
         device: str = "cpu",
     ):
         super().__init__()
         model_path = f"/apdcephfs_cq10/share_1150325/ztjiaweixu/huggingface/{llm_name}"
         if use_pretrained:
             if "gpt2" in llm_name:
-                self.transformer_model = GPT2Model.from_pretrained(model_path)
+                self.transformer_model = GPT2LMHeadModel.from_pretrained(model_path)
                 self.PAD_ID = 50256
             elif llm_name == "pythia-14m":
-                self.transformer_model = GPTNeoXModel.from_pretrained(model_path)
+                self.transformer_model = GPTNeoXForCausalLM.from_pretrained(model_path)
                 self.PAD_ID = 0
         else:
             config = json.load(open(f"{model_path}/config.json", "rb"))
             if "gpt2" in llm_name:
-                self.transformer_model = GPT2Model(GPT2Config(**config))
+                self.transformer_model = GPT2LMHeadModel(GPT2Config(**config))
                 self.PAD_ID = 50256
             elif llm_name == "pythia-14m":
-                self.transformer_model = GPTNeoXModel(GPTNeoXConfig(**config))
+                self.transformer_model = GPTNeoXForCausalLM(GPTNeoXConfig(**config))
                 self.PAD_ID = 0
 
         if not fine_tune:
             for param in self.transformer_model.parameters():
                 param.requires_grad = False
+
+        self.gain = nn.Parameter(torch.randn(1,))
+        self.bias = nn.Parameter(torch.randn(1,))
 
         feature_dim = self.transformer_model.config.hidden_size
         if head_name == "linear":
@@ -234,7 +238,7 @@ class HyperLLM(nn.Module):
             )
         elif head_name == "hyper":
             if feature_sg:
-                self.based_out = nn.Linear(feature_dim, action_num, bias=False)
+                self.init_head_params(feature_dim, action_num)
             self.out = HyperLinear(
                 noise_dim,
                 feature_dim,
@@ -259,16 +263,34 @@ class HyperLLM(nn.Module):
         self.feature_sg = feature_sg
         self.num_padding_at_beginning = 0
         self.fine_tune = fine_tune
+        self.last_token = last_token
+        self.llm_name = llm_name
         self.head_name = head_name
         self.device = device
+
+    def init_head_params(self, feature_dim, action_num):
+        output_embeddings = self.transformer_model.get_output_embeddings().weight.data
+        output_embeddings_avg = output_embeddings.mean(dim=0, keepdim=True).repeat(action_num, 1)
+
+        self.based_out = nn.Linear(feature_dim, action_num, bias=False)
+        self.based_out.weight = nn.Parameter(output_embeddings_avg)
+
+    def transformer(self, input_ids, attention_mask):
+        if "gpt2" in self.llm_name:
+            transformer_out = self.transformer_model.transformer(
+                input_ids=input_ids, attention_mask=attention_mask
+            )
+        elif self.llm_name == "pythia-14m":
+            transformer_out = self.transformer_model.gpt_neox(
+                input_ids=input_ids, attention_mask=attention_mask
+            )
+        logits = self.gain * transformer_out.last_hidden_state + self.bias
+        return logits
 
     def forward(self, noise, input_ids, attention_mask):
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
-        transformer_out = self.transformer_model(
-            input_ids=input_ids, attention_mask=attention_mask
-        )
-        logits = transformer_out.last_hidden_state
+        logits = self.transformer(input_ids, attention_mask)
         if not self.fine_tune:
             logits = logits.detach()
         prior_logits = logits.detach()
@@ -287,20 +309,23 @@ class HyperLLM(nn.Module):
             out = self.out(noise, logits, prior_logits)
         # out: [batch_size, NpS, seq_len, action_num]
         out = out.permute(0, 2, 1, 3)  # [batch_size, seq_len, NpS, action_num]
-        bs, seq_len, NpS, action_num = out.shape
-        values = torch.zeros(bs, NpS, action_num, dtype=out.dtype, device=self.device)
-        for i in range(bs):
-            input_id = input_ids[i]
-            c_inds = (input_id == self.PAD_ID).nonzero()
-            # assert self.PAD_ID == 0
-            c_ind = (
-                c_inds[self.num_padding_at_beginning].item()
-                if len(c_inds) > self.num_padding_at_beginning
-                else seq_len
-            )
-            # Fill the values tensor with the end scores
-            values[i] = out[i][c_ind - 1]
-        return values.squeeze(1)
+        if not self.last_token:
+            return out
+        else:
+            bs, seq_len, NpS, action_num = out.shape
+            values = torch.zeros(bs, NpS, action_num, dtype=out.dtype, device=self.device)
+            for i in range(bs):
+                input_id = input_ids[i]
+                c_inds = (input_id == self.PAD_ID).nonzero()
+                # assert self.PAD_ID == 0
+                c_ind = (
+                    c_inds[self.num_padding_at_beginning].item()
+                    if len(c_inds) > self.num_padding_at_beginning
+                    else seq_len
+                )
+                # Fill the values tensor with the end scores
+                values[i] = out[i][c_ind - 1]
+            return values.squeeze(1)
 
 
 if __name__ == "__main__":

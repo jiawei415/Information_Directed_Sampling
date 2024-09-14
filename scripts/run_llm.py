@@ -56,6 +56,7 @@ def get_args():
     parser.add_argument("--use-pretrained", type=int, default=1, choices=[0, 1])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
+    parser.add_argument("--last-token", type=int, default=1, choices=[0, 1])
     # optimizer config
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--lr", type=float, default=1e-5)
@@ -123,6 +124,7 @@ param = {
         "use_pretrained": args.use_pretrained,
         "use_lora": args.use_lora,
         "fine_tune": args.fine_tune,
+        "last_token": args.last_token,
         **noise_param[args.model_type],
     }
 }

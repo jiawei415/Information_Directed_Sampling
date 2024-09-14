@@ -139,6 +139,7 @@ class HyperLLMSolution:
         use_pretrained: bool = True,
         use_lora: bool = False,
         fine_tune: bool = False,
+        last_token: bool = True,
         logger: Logger = None,
     ):
         self.n_arm = n_arm
@@ -161,11 +162,11 @@ class HyperLLMSolution:
         self.batch_size = batch_size
         self.weight_decay = weight_decay
 
-
         self.llm_name = llm_name
         self.use_pretrained = use_pretrained
         self.use_lora = use_lora
         self.fine_tune = fine_tune
+        self.last_token = last_token
 
         self.buffer_size = buffer_size
         self.model_type = model_type
@@ -190,6 +191,7 @@ class HyperLLMSolution:
             "use_pretrained": self.use_pretrained,
             "use_lora": self.use_lora,
             "fine_tune": self.fine_tune,
+            "last_token": self.last_token,
             "device": self.device,
         }
         self.model = HyperLLM(**model_param).to(self.device)
@@ -249,10 +251,24 @@ class HyperLLMSolution:
         )
 
         if self.model_type == "linear":
-            predict = self.model(None, input_ids, attention_mask).squeeze(-1)
-            if self.action_num > 1:
-                predict = predict[np.arange(self.batch_size), a_batch]
+            predict = self.model(None, input_ids, attention_mask)
             target = r_batch
+            if self.action_num > 1:
+                if self.last_token:
+                    predict = predict[np.arange(self.batch_size), a_batch]
+                else:
+                    a_one_hot = F.one_hot(a_batch, self.action_num).to(predict.dtype)
+                    predict = torch.einsum("bsk,ba->bs", predict.squeeze(-2), a_one_hot)
+                    target = target.unsqueeze(1).expand_as(predict)
+            else:
+                predict = predict.squeeze(-1)
+                if not self.last_token:
+                    predict = predict.squeeze(-1)
+                    target = target.unsqueeze(1).expand_as(predict)
+            diff = (target - predict).pow(2)
+            if not self.last_token:
+                diff = diff.sum(1)
+            loss = diff.mean(0)
         else:
             # perturbation noise
             z_batch = torch.FloatTensor(z_batch).to(self.device)
@@ -260,15 +276,23 @@ class HyperLLMSolution:
             update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
             # noise for target
             target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
-            predict = self.model(update_noise, input_ids, attention_mask).squeeze(-1)
-            if self.action_num > 1:
-                a_one_hot = F.one_hot(a_batch, self.action_num).to(
-                    predict.dtype
-                )  # (None, n_a)
-                predict = torch.einsum("bka,ba->bk", predict, a_one_hot)  # (None, NpS)
             target = target_noise.squeeze(-1) + r_batch.unsqueeze(-1)
-        diff = (target - predict).pow(2).mean(-1)
-        loss = diff.mean()
+            predict = self.model(update_noise, input_ids, attention_mask)
+            if self.action_num > 1:
+                a_one_hot = F.one_hot(a_batch, self.action_num).to(predict.dtype)  # (None, n_a)
+                if self.last_token:
+                    predict = torch.einsum("bka,ba->bk", predict, a_one_hot)  # (None, NpS)
+                else:
+                    predict = torch.einsum("bska,ba->bsk", predict, a_one_hot)
+                    target = target.unsqueeze(1).expand_as(predict)
+            else:
+                predict = predict.squeeze(-1)
+                if not self.last_token:
+                    target = target.unsqueeze(1).expand_as(predict)
+            diff = (target - predict).pow(2)
+            if not self.last_token:
+                diff = diff.sum(1)
+            loss = diff.mean(-1).mean(0)
 
         for param_group in self.optimizer.param_groups:
             param_group["weight_decay"] = self.weight_decay / len(self.buffer)
@@ -286,6 +310,8 @@ class HyperLLMSolution:
             action_noise = self.gen_action_noise(dim=num)
         with torch.no_grad():
             p_a = self.model(action_noise, input_ids, attention_mask)  # .cpu().numpy()
+            if not self.last_token:
+                p_a = p_a[:, -1].squeeze(1)
             if self.action_num > 1:
                 a = _random_argmax(p_a)
             else:
