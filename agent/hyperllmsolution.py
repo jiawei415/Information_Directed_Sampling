@@ -249,8 +249,9 @@ class HyperLLMSolution:
         )
 
         if self.model_type == "linear":
-            predict = self.model(None, input_ids, attention_mask)
-            predict = predict[np.arange(self.batch_size), a_batch]
+            predict = self.model(None, input_ids, attention_mask).squeeze(-1)
+            if self.action_num > 1:
+                predict = predict[np.arange(self.batch_size), a_batch]
             target = r_batch
         else:
             # perturbation noise
@@ -259,14 +260,12 @@ class HyperLLMSolution:
             update_noise = torch.from_numpy(self.gen_update_noise()).to(self.device)
             # noise for target
             target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
-            predict = self.model(update_noise, input_ids, attention_mask)
+            predict = self.model(update_noise, input_ids, attention_mask).squeeze(-1)
             if self.action_num > 1:
                 a_one_hot = F.one_hot(a_batch, self.action_num).to(
                     predict.dtype
                 )  # (None, n_a)
                 predict = torch.einsum("bka,ba->bk", predict, a_one_hot)  # (None, NpS)
-            else:
-                predict = predict.squeeze(-1)
             target = target_noise.squeeze(-1) + r_batch.unsqueeze(-1)
         diff = (target - predict).pow(2).mean(-1)
         loss = diff.mean()
