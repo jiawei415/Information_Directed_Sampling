@@ -200,6 +200,8 @@ class HyperLLM(nn.Module):
         use_lora: bool = False,
         fine_tune: bool = False,
         last_token: bool = True,
+        embed_init: bool = False,
+        hidden_transform: bool = False,
         device: str = "cpu",
     ):
         super().__init__()
@@ -224,8 +226,9 @@ class HyperLLM(nn.Module):
             for param in self.transformer_model.parameters():
                 param.requires_grad = False
 
-        self.gain = nn.Parameter(torch.randn(1,))
-        self.bias = nn.Parameter(torch.randn(1,))
+        if hidden_transform:
+            self.gain = nn.Parameter(torch.randn(1,))
+            self.bias = nn.Parameter(torch.randn(1,))
 
         feature_dim = self.transformer_model.config.hidden_size
         if head_name == "linear":
@@ -238,7 +241,10 @@ class HyperLLM(nn.Module):
             )
         elif head_name == "hyper":
             if feature_sg:
-                self.init_head_params(feature_dim, action_num)
+                if embed_init:
+                    self.init_head_params(feature_dim, action_num)
+                else:
+                    self.based_out = nn.Linear(feature_dim, action_num, bias=False)
             self.out = HyperLinear(
                 noise_dim,
                 feature_dim,
@@ -264,6 +270,7 @@ class HyperLLM(nn.Module):
         self.num_padding_at_beginning = 0
         self.fine_tune = fine_tune
         self.last_token = last_token
+        self.hidden_transform = hidden_transform
         self.llm_name = llm_name
         self.head_name = head_name
         self.device = device
@@ -284,15 +291,17 @@ class HyperLLM(nn.Module):
             transformer_out = self.transformer_model.gpt_neox(
                 input_ids=input_ids, attention_mask=attention_mask
             )
-        logits = self.gain * transformer_out.last_hidden_state + self.bias
+        logits = transformer_out.last_hidden_state
+        if not self.fine_tune:
+            logits = logits.detach()
+        if self.hidden_transform:
+            logits = self.gain * logits + self.bias
         return logits
 
     def forward(self, noise, input_ids, attention_mask):
         input_ids = input_ids.to(self.device)
         attention_mask = attention_mask.to(self.device)
         logits = self.transformer(input_ids, attention_mask)
-        if not self.fine_tune:
-            logits = logits.detach()
         prior_logits = logits.detach()
         if self.head_name == "linear":
             out = self.out(logits, prior_logits)

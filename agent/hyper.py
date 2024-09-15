@@ -160,6 +160,8 @@ class HyperMAB:
         use_lora=False,
         fine_tune=False,
         last_token=True,
+        embed_init=False,
+        hidden_transform=False,
     ):
         z_coef = z_coef if z_coef is not None else self.eta
         buffer_size = buffer_size or T
@@ -188,6 +190,8 @@ class HyperMAB:
             use_lora=use_lora,
             fine_tune=fine_tune,
             last_token=last_token,
+            embed_init=embed_init,
+            hidden_transform=hidden_transform,
             logger=logger,
         )
 

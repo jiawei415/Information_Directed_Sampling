@@ -140,6 +140,8 @@ class HyperLLMSolution:
         use_lora: bool = False,
         fine_tune: bool = False,
         last_token: bool = True,
+        embed_init: bool = False,
+        hidden_transform: bool = False,
         logger: Logger = None,
     ):
         self.n_arm = n_arm
@@ -167,6 +169,8 @@ class HyperLLMSolution:
         self.use_lora = use_lora
         self.fine_tune = fine_tune
         self.last_token = last_token
+        self.embed_init = embed_init
+        self.hidden_transform = hidden_transform
 
         self.buffer_size = buffer_size
         self.model_type = model_type
@@ -192,6 +196,8 @@ class HyperLLMSolution:
             "use_lora": self.use_lora,
             "fine_tune": self.fine_tune,
             "last_token": self.last_token,
+            "embed_init": self.embed_init,
+            "hidden_transform": self.hidden_transform,
             "device": self.device,
         }
         self.model = HyperLLM(**model_param).to(self.device)

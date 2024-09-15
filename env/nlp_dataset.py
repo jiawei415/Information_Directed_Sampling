@@ -7,7 +7,7 @@ from transformers import AutoTokenizer
 
 
 class HateSpeechDataset(Dataset):
-    def __init__(self, dataset="hatespeech", llm_name="gpt2", max_length=2024):
+    def __init__(self, dataset="hatespeech", llm_name="gpt2", max_length=2024, hate_score_threshold=0.5):
         dataset_path = f"/apdcephfs_cq10/share_1150325/ztjiaweixu/huggingface/{dataset}"
         self.dataset = load_from_disk(dataset_path)["train"]
         tokenizer_path = (
@@ -16,6 +16,7 @@ class HateSpeechDataset(Dataset):
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, truncation_side='left', use_fast=True)
         self.tokenizer.pad_token = self.tokenizer.unk_token
         self.max_length = max_length
+        self.hate_score_threshold = hate_score_threshold
 
     def __len__(self):
         return len(self.dataset)
@@ -38,8 +39,8 @@ class HateSpeechDataset(Dataset):
         )
         # Score is passed to simulate rewards during the learning loop
         reward = np.ones(2) * 0.5
-        reward[1] = 1 if score <= 0.5 else -0.5
-        action = 1 if score <= 0.5 else 0
+        reward[1] = 1 if score <= self.hate_score_threshold else -0.5
+        action = 1 if score <= self.hate_score_threshold else 0
         return input_ids, attention_mask, score, reward, action
 
 
@@ -48,14 +49,15 @@ class HateSpeechEnv:
         self,
         n_features=1024,
         n_actions=32,
+        threshold=0.5,
+        llm_name="gpt2",
         eta=0.1,
         sigma=1,
-        llm_name="gpt2",
     ):
         reward_random_state = np.random.randint(1, 312414)
         self.reward_random = np.random.default_rng(reward_random_state)
 
-        dataset = HateSpeechDataset(llm_name=llm_name, max_length=n_features)
+        dataset = HateSpeechDataset(llm_name=llm_name, max_length=n_features, hate_score_threshold=threshold)
         self.all_actions = len(dataset)
 
         self.n_actions = n_actions

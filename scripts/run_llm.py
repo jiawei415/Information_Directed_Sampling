@@ -26,10 +26,11 @@ def get_args():
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=512)
     parser.add_argument("--n-arms", type=int, default=4)
-    parser.add_argument("--action-num", type=int, default=2)
-    parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--env-threshold", type=float, default=0.5)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
+    parser.add_argument("--action-num", type=int, default=2)
+    parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--method", type=str, default="LLM")
     parser.add_argument("--noise-dim", type=int, default=4)
     parser.add_argument("--NpS", type=int, default=16)
@@ -57,6 +58,8 @@ def get_args():
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
     parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
     parser.add_argument("--last-token", type=int, default=1, choices=[0, 1])
+    parser.add_argument("--embed-init", type=int, default=1, choices=[0, 1])
+    parser.add_argument("--hidden-transform", type=int, default=1, choices=[0, 1])
     # optimizer config
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--lr", type=float, default=1e-5)
@@ -125,6 +128,8 @@ param = {
         "use_lora": args.use_lora,
         "fine_tune": args.fine_tune,
         "last_token": args.last_token,
+        "embed_init": args.embed_init,
+        "hidden_transform": args.hidden_transform,
         **noise_param[args.model_type],
     }
 }
@@ -136,6 +141,7 @@ game_config = {
         "n_features": args.n_features,
         "n_arms": args.n_arms,
         "llm_name": args.llm_name,
+        "threshold": args.env_threshold,
     },
 }
 
