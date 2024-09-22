@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper")
-    parser.add_argument("--noise-dim", type=int, default=4)
+    parser.add_argument("--noise-dim", type=int, default=8)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--action-noise", type=str, default="sp")
@@ -56,40 +56,37 @@ def get_args():
     parser.add_argument("--log-dir", type=str, default="~/results/bandit")
     args = parser.parse_known_args()[0]
     if args.game == "Synthetic-v1":
-        args.prior_scale = 10.0
+        args.prior_scale = 5.0
         args.posterior_scale = 1.0
-        args.update_num = 10
-    elif args.game == "Synthetic-v2":
-        args.prior_scale = 1.0
-        args.posterior_scale = 0.1
         args.update_num = 4
+    elif args.game == "Synthetic-v2":
+        args.prior_scale = 2.0
+        args.posterior_scale = 1.0
+        args.update_num = 20
     elif args.game == "Synthetic-v4":
         args.prior_scale = 1.0
         args.posterior_scale = 1.0
-        args.update_num = 1
+        args.update_num = 20
     elif args.game == "Synthetic-v5":
-        args.prior_scale = 1.0
-        args.posterior_scale = 0.1
-        args.update_num = 4
+        args.prior_scale = 5.0
+        args.posterior_scale = 1.0
+        args.update_num = 20
     elif args.game == "Synthetic-v6":
         args.prior_scale = 1.0
-        args.posterior_scale = 0.1
-        args.update_num = 4
-    elif args.game == "RealData-v1":
-        args.prior_scale = 0.1
-        args.posterior_scale = 0.1
+        args.posterior_scale = 1.0
         args.update_num = 20
-        args.lr = 0.001
+    elif args.game == "RealData-v1":
+        args.prior_scale = 0.2
+        args.posterior_scale = 0.1
+        args.update_num = 50
     elif args.game == "RealData-v3":
         args.prior_scale = 1.0
         args.posterior_scale = 0.1
-        args.update_num = 10
-        args.lr = 0.0001
-    elif args.game == "RealData-v4":
-        args.prior_scale = 10.0
-        args.posterior_scale = 1.0
         args.update_num = 50
-        args.lr = 0.001
+    elif args.game == "RealData-v4":
+        args.prior_scale = 2.0
+        args.posterior_scale = 1.0
+        args.update_num = 20
     return args
 
 

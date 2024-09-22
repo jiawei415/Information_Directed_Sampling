@@ -1,10 +1,7 @@
 id=$1
 log_dir="/apdcephfs/share_1563664/ztjiaweixu/bandit_sz/2024$id"
 
-n_context=1
-time_period=100000
-n_features=100
-n_arms=50
+time_period=10000
 NpS=16
 noise_dim=8
 action_noise=sp
@@ -15,9 +12,13 @@ method=Hyper
 # method=Ensemble
 # method=LMCTS
 
+pip install scikit-learn==0.22.1
+pip install pandas==1.3.5
+pip install numpy==1.20.0
+
 cuda_id=0
-for game in Synthetic-v1
-# for game in Synthetic-v1 Synthetic-v2 Synthetic-v4 Synthetic-v5 Synthetic-v6
+for game in RealData-v4
+# for game in RealData-v1 RealData-v2 RealData-v3 RealData-v4
 do
     export CUDA_VISIBLE_DEVICES=${cuda_id}
     seed=0
@@ -25,8 +26,7 @@ do
     do
         tag=$(date "+%Y%m%d%H%M%S")
         python -m scripts.run_nonlinear --game=${game} --method=${method} --seed=${seed} \
-            --n-context=${n_context} --time-period=${time_period} \
-            --n-features=${n_features} --n-arms=${n_arms} \
+            --time-period=${time_period} \
             --noise-dim=${noise_dim} --NpS=${NpS} \
             --action-noise=${action_noise} --update-noise=${update_noise} --buffer-noise=${buffer_noise} \
             --log-dir=${log_dir} \
