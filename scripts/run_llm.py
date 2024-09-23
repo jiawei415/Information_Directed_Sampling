@@ -87,7 +87,9 @@ path = os.path.expanduser(os.path.join(args.log_dir, args.game, dir))
 os.makedirs(path, exist_ok=True)
 
 noise_param = {
-    "linear": {},
+    "linear": {
+        "prior_scale": 0.0,
+    },
     "hyper": {
         "action_noise": args.action_noise,
         "update_noise": args.update_noise,

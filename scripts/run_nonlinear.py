@@ -39,6 +39,8 @@ def get_args():
     # model config
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
+    parser.add_argument("--ensemble-size", type=int, default=64)
+    parser.add_argument("--ensemble-layer", type=int, default=0)
     # optimizer config
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--lr", type=float, default=0.0001)
@@ -135,6 +137,7 @@ param = {
         "action_noise": "oh",
         "update_noise": "oh",
         "buffer_noise": "gs",
+        "ensemble_sizes": [args.ensemble_size] * args.ensemble_layer,
     },
     "LMCTS": {
         **based_param,

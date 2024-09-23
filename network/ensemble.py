@@ -6,6 +6,8 @@ import torch.nn as nn
 
 
 def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
+    if len(hidden_sizes) == 0 and out_dim == 0:
+        return nn.Identity()
     if len(hidden_sizes) == 0:
         return nn.Linear(inp_dim, out_dim, bias=bias)
     model = [nn.Linear(inp_dim, hidden_sizes[0], bias=bias)]
@@ -30,10 +32,11 @@ class EnsembleNet(nn.Module):
         device: Union[str, int, torch.device] = "cpu",
     ):
         super().__init__()
+        feature_dim = hidden_sizes[-1] if len(hidden_sizes) > 0 else in_features
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
         self.out = nn.ModuleList(
             [
-                mlp(hidden_sizes[-1], 1, ensemble_sizes)
+                mlp(feature_dim, 1, ensemble_sizes)
                 for _ in range(noise_dim)
             ]
         )
@@ -41,7 +44,7 @@ class EnsembleNet(nn.Module):
             self.priormodel = mlp(in_features, 0, hidden_sizes)
             self.prior_out = nn.ModuleList(
                 [
-                    mlp(hidden_sizes[-1], 1, ensemble_sizes)
+                    mlp(feature_dim, 1, ensemble_sizes)
                     for _ in range(noise_dim)
                 ]
             )

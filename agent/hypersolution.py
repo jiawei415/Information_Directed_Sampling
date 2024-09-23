@@ -97,6 +97,7 @@ class HyperSolution:
         based_prior: bool = False,
         feature_sg: bool = True,
         hidden_sizes: Sequence[int] = (),
+        ensemble_sizes: Sequence[int] = (),
         class_num: int = 1,
         optim: str = "Adam",
         lr: float = 0.01,
@@ -121,6 +122,7 @@ class HyperSolution:
         self.feature_sg = feature_sg
 
         self.hidden_sizes = hidden_sizes
+        self.ensemble_sizes = ensemble_sizes
         self.class_num = class_num
 
         self.optim = optim
@@ -158,6 +160,7 @@ class HyperSolution:
             model_param.update({"class_num": self.class_num})
             Net = EpiNet
         elif self.model_type == "ensemble":
+            model_param.update({"ensemble_sizes": self.ensemble_sizes})
             Net = EnsembleNet
         else:
             raise NotImplementedError
