@@ -47,7 +47,7 @@ def get_args():
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--weight-decay", type=float, default=0.01)
     # buffer config
-    parser.add_argument("--buffer-size", type=int, default=None)
+    parser.add_argument("--buffer-size", type=int, default=10000)
     # update config
     parser.add_argument("--update-start", type=int, default=128)
     parser.add_argument("--update-num", type=int, default=4)

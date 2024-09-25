@@ -22,11 +22,12 @@ class ReplayBuffer:
             for key, shape in buffer_shape.items()
         }
         self.buffer_size = buffer_size
+        self.current_size = 0
+        self.point = 0
         self.store_z = "z" in buffer_shape.keys()
         if self.store_z:
             self.noise_dim = buffer_shape["z"][-1]
             self.set_buffer_noise(noise_type)
-        self.sample_num = 0
 
     def set_buffer_noise(self, noise_type):
         args = {"M": self.noise_dim}
@@ -46,39 +47,67 @@ class ReplayBuffer:
             self.gen_noise = partial(sample_buffer_noise, "SparseConsistent", **args)
 
     def __len__(self):
-        return self.sample_num
+        return self.current_size
 
     def _sample(self, index):
-        f_data = self.buffers["f"][: self.sample_num][index]
-        r_data = self.buffers["r"][: self.sample_num][index]
+        f_data = self.buffers["f"][index]
+        r_data = self.buffers["r"][index]
         if self.store_z:
-            z_data = self.buffers["z"][: self.sample_num][index]
+            z_data = self.buffers["z"][index]
         else:
             z_data = None
         return f_data, r_data, z_data
 
     def reset(self):
-        self.sample_num = 0
+        self.current_size = 0
 
     def put(self, transition):
-        self.buffers["r"][self.sample_num] = transition["r"]
-        self.buffers["f"][self.sample_num] = transition["f"]
+        transition.pop("a")
+        batch_size = 1
+        idx = self._get_ordered_storage_idx(batch_size)
+        for k, v in transition.items():
+            self.buffers[k][idx] = v
         if self.store_z:
             z = self.gen_noise()
-            self.buffers["z"][self.sample_num] = z
-        self.sample_num += 1
+            self.buffers["z"][idx] = z
 
-    def sample(self, n):
-        # get n data in buffer
-        index = np.random.randint(low=0, high=self.sample_num, size=n)
-        return self._sample(index)
-
-    def sample_all(self, shuffle=True):
+    def get(self, shuffle=True):
         # get all data in buffer
-        index = list(range(self.sample_num))
+        index = list(range(self.current_size))
         if shuffle:
             np.random.shuffle(index)
         return self._sample(index)
+
+    def sample(self, n):
+        # get n data in buffer
+        index = np.random.randint(low=0, high=self.current_size, size=n)
+        return self._sample(index)
+
+    def sample_all(self):
+        return self._sample(range(self.current_size))
+
+    # if full, insert in order
+    def _get_ordered_storage_idx(self, inc=None):
+        inc = inc or 1  # size increment
+        assert inc <= self.buffer_size, "Batch committed to replay is too large!"
+
+        if self.point + inc <= self.buffer_size - 1:
+            idx = np.arange(self.point, self.point + inc)
+        else:
+            overflow = inc - (self.buffer_size - self.point)
+            idx_a = np.arange(self.point, self.buffer_size)
+            idx_b = np.arange(0, overflow)
+            idx = np.concatenate([idx_a, idx_b])
+
+        self.point = (self.point + inc) % self.buffer_size
+
+        # update replay size, don't add when it already surpass self.size
+        if self.current_size < self.buffer_size:
+            self.current_size = min(self.buffer_size, self.current_size + inc)
+
+        if inc == 1:
+            idx = idx[0]
+        return idx
 
 
 class HyperSolution:
