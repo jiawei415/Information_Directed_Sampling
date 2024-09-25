@@ -226,6 +226,11 @@ def sample_action_noise(noise_type, M, dim=1, sparsity=2):
         B = np.zeros((dim, M), dtype=np.float32)
         B[np.arange(dim), i] = 1
         return B
+    elif noise_type == "HOH":
+        i = np.random.randint(0, M, dim)
+        B = np.zeros((dim, M), dtype=np.float32)
+        B[np.arange(dim), i] = 1
+        return B * np.sqrt(M)
     elif noise_type == "Sparse":
         i = random_choice_noreplace(dim, M)[:, :sparsity]
         B = np.zeros((dim, M), dtype=np.float32)
@@ -268,6 +273,10 @@ def sample_update_noise(noise_type, M, dim=1, sparsity=2, batch_size=1):
         B = np.eye(M, dtype=np.float32)
         B = np.expand_dims(B, 0).repeat(batch_size, 0)
         return B
+    elif noise_type == "HOH":
+        B = np.eye(M, dtype=np.float32)
+        B = np.expand_dims(B, 0).repeat(batch_size, 0)
+        return B * np.sqrt(M)
     elif noise_type == "Sparse":
         index = np.array([list(c) for c in it.combinations(list(range(M)), sparsity)])
         elements = list(it.product([1, -1], repeat=sparsity))

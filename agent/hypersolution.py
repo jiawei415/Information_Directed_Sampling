@@ -284,6 +284,8 @@ class HyperSolution:
             self.gen_action_noise = partial(sample_action_noise, "PMCoord", **args)
         elif self.action_noise == "oh":
             self.gen_action_noise = partial(sample_action_noise, "OH", **args)
+        elif self.action_noise == "hoh":
+            self.gen_action_noise = partial(sample_action_noise, "HOH", **args)
         elif self.action_noise == "sps":
             self.gen_action_noise = partial(sample_action_noise, "Sparse", **args)
         elif self.action_noise == "spc":
@@ -303,6 +305,8 @@ class HyperSolution:
             self.gen_update_noise = partial(sample_update_noise, "PMCoord", **args)
         elif self.update_noise == "oh":
             self.gen_update_noise = partial(sample_update_noise, "OH", **args)
+        elif self.update_noise == "hoh":
+            self.gen_update_noise = partial(sample_update_noise, "HOH", **args)
         elif self.update_noise == "sps":
             self.gen_update_noise = partial(sample_update_noise, "Sparse", **args)
         elif self.update_noise == "spc":
