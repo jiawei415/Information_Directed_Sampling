@@ -25,7 +25,7 @@ def get_args():
     parser.add_argument("--game", type=str, default="hatespeech")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-features", type=int, default=512)
-    parser.add_argument("--n-arms", type=int, default=4)
+    parser.add_argument("--n-arms", type=int, default=1)
     parser.add_argument("--env-threshold", type=float, default=0.5)
     parser.add_argument("--eta", type=float, default=0.1)
     # algorithm config
@@ -33,7 +33,7 @@ def get_args():
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--method", type=str, default="LLM")
     parser.add_argument("--noise-dim", type=int, default=4)
-    parser.add_argument("--NpS", type=int, default=16)
+    parser.add_argument("--NpS", type=int, default=8)
     parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--action-noise", type=str, default="sp")
     parser.add_argument("--update-noise", type=str, default="pm")
@@ -56,21 +56,21 @@ def get_args():
     )
     parser.add_argument("--use-pretrained", type=int, default=1, choices=[0, 1])
     parser.add_argument("--use-lora", type=int, default=0, choices=[0, 1])
-    parser.add_argument("--fine-tune", type=int, default=0, choices=[0, 1])
+    parser.add_argument("--fine-tune", type=int, default=1, choices=[0, 1])
     parser.add_argument("--last-token", type=int, default=1, choices=[0, 1])
     parser.add_argument("--embed-init", type=int, default=0, choices=[0, 1])
     parser.add_argument("--hidden-transform", type=int, default=0, choices=[0, 1])
     # optimizer config
     parser.add_argument("--optim", type=str, default="Adam", choices=["Adam", "SGD"])
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--batch-size", type=int, default=2)
+    parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--weight-decay", type=float, default=0.1)
     # buffer config
     parser.add_argument("--buffer-size", type=int, default=10000)
     # update config
-    parser.add_argument("--update-start", type=int, default=2)
+    parser.add_argument("--update-start", type=int, default=20)
     parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--update-freq", type=int, default=1)
+    parser.add_argument("--update-freq", type=int, default=10)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)

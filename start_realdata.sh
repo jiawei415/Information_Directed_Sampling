@@ -18,7 +18,7 @@ pip install numpy==1.20.0
 
 cuda_id=0
 for game in RealData-v4
-# for game in RealData-v1 RealData-v2 RealData-v3 RealData-v4
+# for game in RealData-v1 RealData-v3 RealData-v4
 do
     export CUDA_VISIBLE_DEVICES=${cuda_id}
     seed=0

@@ -66,9 +66,9 @@ def get_args():
         args.posterior_scale = 1.0
         args.update_num = 20
     elif args.game == "Synthetic-v4":
-        args.prior_scale = 1.0
-        args.posterior_scale = 1.0
-        args.update_num = 20
+        args.prior_scale = 0.2
+        args.posterior_scale = 0.1
+        args.update_num = 10
     elif args.game == "Synthetic-v5":
         args.prior_scale = 5.0
         args.posterior_scale = 1.0
