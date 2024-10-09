@@ -7,8 +7,8 @@ import torch.nn.functional as F
 
 class ArmGaussianLinear(object):
     def __init__(self, n_context, prior_random_state=2022, reward_random_state=2023):
-        self.prior_random = np.random.RandomState(prior_random_state)
-        self.reward_random = np.random.RandomState(reward_random_state)
+        self.prior_random = np.random.default_rng(prior_random_state)
+        self.reward_random = np.random.default_rng(reward_random_state)
         self.n_context = n_context
 
     def reward(self, arm):
@@ -17,9 +17,9 @@ class ArmGaussianLinear(object):
         :param arm: int
         :return: float
         """
-        return np.dot(self.features[arm], self.real_theta) + self.reward_random.normal(
-            0, self.eta, 1
-        )
+        reward = np.dot(self.features[arm], self.real_theta)
+        noise = self.reward_random.standard_normal(dtype=np.float32) * self.eta
+        return reward + noise
 
     @property
     def n_features(self):
@@ -73,10 +73,10 @@ class FiniteContextPaperLinModel(ArmGaussianLinear):
         self.eta = eta
         self.all_features = self.prior_random.uniform(
             -u, u, (n_context, n_actions, n_features)
-        )
+        ).astype(np.float32)
         self.real_theta = self.prior_random.multivariate_normal(
             np.zeros(n_features), sigma * np.eye(n_features)
-        )
+        ).astype(np.float32)
         self.alg_prior_sigma = sigma
         self.set_context()
 

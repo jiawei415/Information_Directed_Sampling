@@ -18,8 +18,8 @@ def get_args():
     parser.add_argument("--game", type=str, default="Synthetic-v1")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-context", type=int, default=1)
-    parser.add_argument("--n-features", type=int, default=50)
-    parser.add_argument("--n-arms", type=int, default=20)
+    parser.add_argument("--n-features", type=int, default=100)
+    parser.add_argument("--n-arms", type=int, default=50)
     parser.add_argument("--all-arms", type=int, default=1000)
     parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
     parser.add_argument("--eta", type=float, default=0.1)
@@ -31,7 +31,7 @@ def get_args():
     parser.add_argument("--action-noise", type=str, default="sp")
     parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--prior-scale", type=float, default=1.0)
+    parser.add_argument("--prior-scale", type=float, default=5.0)
     parser.add_argument("--posterior-scale", type=float, default=1.0)
     parser.add_argument("--based-prior", type=int, default=0, choices=[0, 1])
     parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
@@ -167,6 +167,7 @@ game_config = {
     "RealData-v3": {**base_config},
     "RealData-v4": {**base_config},
     "RealData-v5": {**base_config},
+    "Russo": {**base_config},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:
