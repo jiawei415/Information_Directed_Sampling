@@ -166,7 +166,7 @@ game_config = {
     "RealData-v2": {**base_config},
     "RealData-v3": {**base_config},
     "RealData-v4": {**base_config},
-    "RealData-v5": {**base_config},
+    "RealData-v5": {**base_config, "eta": 1.0},
     "Russo": {**base_config},
 }
 

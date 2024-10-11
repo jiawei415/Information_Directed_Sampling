@@ -334,7 +334,7 @@ def FiniteContextHyperMAB_expe(
         u = 1 / np.sqrt(5)
         models = [
             HyperMAB(
-                FiniteContextPaperLinModel(u, n_context, n_features, n_arms, sigma=10)
+                FiniteContextPaperLinModel(u, n_context, n_features, n_arms, eta=kwargs.get("eta", 1.0), sigma=10)
             )
             for _ in range(n_expe)
         ]

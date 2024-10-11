@@ -48,7 +48,7 @@ class ArmGaussianLinear(object):
 
 
 class PaperLinModel(ArmGaussianLinear):
-    def __init__(self, u, n_features, n_actions, eta=10, sigma=10):
+    def __init__(self, u, n_features, n_actions, eta=1, sigma=10):
         """
         Initialization of the arms, features and theta in
         Russo, Daniel, and Benjamin Van Roy. "Learning to optimize via information-directed sampling." Operations Research 66.1 (2018): 230-252.

@@ -18,7 +18,7 @@ class ArmGaussianLinear(object):
         :return: float
         """
         reward = np.dot(self.features[arm], self.real_theta)
-        noise = self.reward_random.standard_normal(dtype=np.float32) * self.eta
+        noise = self.reward_random.normal(0, self.eta)
         return reward + noise
 
     @property
