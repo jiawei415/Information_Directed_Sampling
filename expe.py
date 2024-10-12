@@ -286,6 +286,8 @@ def FiniteContextHyperMAB_expe(
     doplot=False,
     store=False,
     seed=2022,
+    eta=0.1,
+    sigma=1.0,
     **kwargs,
 ):
     """
@@ -334,7 +336,7 @@ def FiniteContextHyperMAB_expe(
         u = 1 / np.sqrt(5)
         models = [
             HyperMAB(
-                FiniteContextPaperLinModel(u, n_context, n_features, n_arms, eta=kwargs.get("eta", 1.0), sigma=10)
+                FiniteContextPaperLinModel(u, n_context, n_features, n_arms, eta=eta, sigma=sigma)
             )
             for _ in range(n_expe)
         ]
@@ -351,7 +353,8 @@ def FiniteContextHyperMAB_expe(
                     all_actions=kwargs["all_arms"],
                     reward_version=rew_v,
                     freq_task=freq_task,
-                    eta=kwargs.get("eta", 0.1),
+                    eta=eta,
+                    sigma=sigma,
                 )
             )
             for _ in range(n_expe)
@@ -362,9 +365,7 @@ def FiniteContextHyperMAB_expe(
         models = [
             HyperMAB(
                 Bandit_multi(
-                    dn,
-                    freq_task=freq_task,
-                    eta=kwargs.get("eta", 0.1),
+                    dn, freq_task=freq_task, eta=eta, sigma=sigma,
                 )
             )
             for _ in range(n_expe)

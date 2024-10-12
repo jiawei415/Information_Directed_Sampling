@@ -23,6 +23,7 @@ def get_args():
     parser.add_argument("--all-arms", type=int, default=1000)
     parser.add_argument("--freq-task", type=int, default=1, choices=[0, 1])
     parser.add_argument("--eta", type=float, default=0.1)
+    parser.add_argument("--sigma", type=float, default=1.0)
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper")
     parser.add_argument("--noise-dim", type=int, default=8)
@@ -50,7 +51,7 @@ def get_args():
     parser.add_argument("--buffer-size", type=int, default=10000)
     # update config
     parser.add_argument("--update-start", type=int, default=128)
-    parser.add_argument("--update-num", type=int, default=4)
+    parser.add_argument("--update-num", type=int, default=1)
     parser.add_argument("--update-freq", type=int, default=1)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
@@ -153,21 +154,23 @@ base_config = {
     "n_arms": args.n_arms,
     "T": args.time_period,
     "freq_task": args.freq_task,
+    "eta": args.eta,
+    "sigma": args.sigma,
 }
 
 game_config = {
-    "Synthetic-v1": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
-    "Synthetic-v2": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v1": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v2": {**base_config, "all_arms": args.all_arms},
     "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": 0.0},
-    "Synthetic-v4": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
-    "Synthetic-v5": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
-    "Synthetic-v6": {**base_config, "all_arms": args.all_arms, "eta": args.eta},
+    "Synthetic-v4": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v5": {**base_config, "all_arms": args.all_arms},
+    "Synthetic-v6": {**base_config, "all_arms": args.all_arms},
     "RealData-v1": {**base_config},
     "RealData-v2": {**base_config},
     "RealData-v3": {**base_config},
     "RealData-v4": {**base_config},
-    "RealData-v5": {**base_config, "eta": 1.0},
-    "Russo": {**base_config},
+    "RealData-v5": {**base_config},
+    "Russo": {**base_config, "eta": 1.0, "sigma": 10.0},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:
