@@ -28,7 +28,9 @@ class MLP(nn.Module):
                 model += [nn.Linear(hidden_sizes[i - 1], hidden_sizes[i])]
                 model += [nn.ReLU(inplace=True)]
             model += [nn.Linear(hidden_sizes[-1], output_dim)]
-        self.model = nn.Sequential(*model)
+            self.model = nn.Sequential(*model)
+        else:
+            self.model = nn.Linear(input_dim, output_dim)
         self.reset_parameters()
 
         self.temperature = temperature

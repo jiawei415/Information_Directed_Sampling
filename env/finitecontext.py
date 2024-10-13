@@ -102,10 +102,10 @@ class FiniteContextFreqPaperLinModel(ArmGaussianLinear):
         self.eta = eta
         self.all_features = self.prior_random.uniform(
             -u, u, (n_context, n_actions, n_features)
-        )
+        ).astype(np.float32)
         self.real_theta = self.prior_random.multivariate_normal(
             np.zeros(n_features), sigma * np.eye(n_features)
-        )
+        ).astype(np.float32)
         self.alg_prior_sigma = sigma
         self.set_context()
 
