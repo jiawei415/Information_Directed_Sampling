@@ -32,7 +32,7 @@ def get_args():
     parser.add_argument("--action-noise", type=str, default="sp")
     parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--prior-scale", type=float, default=5.0)
+    parser.add_argument("--prior-scale", type=float, default=1.0)
     parser.add_argument("--posterior-scale", type=float, default=1.0)
     parser.add_argument("--based-prior", type=int, default=0, choices=[0, 1])
     parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
@@ -90,6 +90,11 @@ def get_args():
         args.prior_scale = 2.0
         args.posterior_scale = 1.0
         args.update_num = 20
+    elif "Russo" in args.game:
+        args.n_context = 20
+        args.prior_scale = 5.0
+        args.posterior_scale = 1.0
+        args.update_num = 10
     return args
 
 
@@ -171,6 +176,7 @@ game_config = {
     "RealData-v4": {**base_config},
     "RealData-v5": {**base_config},
     "Russo": {**base_config, "eta": 1.0, "sigma": 10.0},
+    "FreqRusso": {**base_config, "eta": 1.0, "sigma": 10.0},
 }
 
 with open(os.path.join(path, "config.json"), "wt") as f:
