@@ -26,6 +26,7 @@ class EnsembleNet(nn.Module):
         in_features: int,
         hidden_sizes: Sequence[int] = (),
         ensemble_sizes: Sequence[int] = (),
+        action_num: int = 1,
         noise_dim: int = 2,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
@@ -36,7 +37,7 @@ class EnsembleNet(nn.Module):
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
         self.out = nn.ModuleList(
             [
-                mlp(feature_dim, 1, ensemble_sizes)
+                mlp(feature_dim, action_num, ensemble_sizes)
                 for _ in range(noise_dim)
             ]
         )
@@ -44,7 +45,7 @@ class EnsembleNet(nn.Module):
             self.priormodel = mlp(in_features, 0, hidden_sizes)
             self.prior_out = nn.ModuleList(
                 [
-                    mlp(feature_dim, 1, ensemble_sizes)
+                    mlp(feature_dim, action_num, ensemble_sizes)
                     for _ in range(noise_dim)
                 ]
             )
@@ -85,12 +86,12 @@ class EnsembleNet(nn.Module):
                 out = self.posterior_scale * out + self.prior_scale * prior_out
         else:
             out = [self.out[k](logits) for k in range(self.ensemble_num)]
-            out = torch.hstack(out)
+            out = torch.stack(out, dim=1)
             if self.prior_scale > 0:
                 prior_logits = self.priormodel(x)
                 prior_out = [
                     self.prior_out[k](prior_logits) for k in range(self.ensemble_num)
                 ]
-                prior_out = torch.hstack(prior_out)
+                prior_out = torch.stack(prior_out, dim=1)
                 out = self.posterior_scale * out + self.prior_scale * prior_out
         return out.squeeze(-1)

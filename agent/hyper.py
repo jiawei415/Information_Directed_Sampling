@@ -249,6 +249,7 @@ class HyperMAB:
         based_prior=False,
         feature_sg=True,
         hidden_sizes=(),
+        class_num=1,
         optim="Adam",
         lr=0.01,
         batch_size=32,
@@ -274,6 +275,7 @@ class HyperMAB:
             based_prior=based_prior,
             feature_sg=feature_sg,
             hidden_sizes=hidden_sizes,
+            class_num=class_num,
             optim=optim,
             lr=lr,
             batch_size=batch_size,
@@ -288,6 +290,8 @@ class HyperMAB:
         for t in range(T):
             self.set_context()
             value = model.predict(self.features)
+            if class_num > 1:
+                value = value[:, 1]
             a_t = rd_argmax(value)
             f_t, r_t = self.features[a_t], self.reward(a_t)
             reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
@@ -394,6 +398,7 @@ class HyperMAB:
         posterior_scale=1.0,
         feature_sg=True,
         hidden_sizes=(),
+        class_num=1,
         ensemble_sizes=(),
         optim="Adam",
         lr=0.01,
@@ -419,6 +424,7 @@ class HyperMAB:
             posterior_scale=posterior_scale,
             feature_sg=feature_sg,
             hidden_sizes=hidden_sizes,
+            class_num=class_num,
             ensemble_sizes=ensemble_sizes,
             optim=optim,
             lr=lr,

@@ -174,6 +174,7 @@ class HyperSolution:
         model_param = {
             "in_features": self.feature_dim,
             "hidden_sizes": self.hidden_sizes,
+            "action_num": self.class_num,
             "noise_dim": self.noise_dim,
             "prior_scale": self.prior_scale,
             "posterior_scale": self.posterior_scale,
@@ -186,7 +187,6 @@ class HyperSolution:
                 "based_prior": self.based_prior,
             })
         elif self.model_type == "epinet":
-            model_param.update({"class_num": self.class_num})
             Net = EpiNet
         elif self.model_type == "ensemble":
             model_param.update({"ensemble_sizes": self.ensemble_sizes})
@@ -242,8 +242,9 @@ class HyperSolution:
         target_noise = torch.bmm(update_noise, z_batch.unsqueeze(-1)) * self.noise_coef
 
         predict = self.model(update_noise, f_batch)
-        if self.model_type == "epinet" and self.class_num > 1:
-            r_batch = r_batch.unsqueeze(-1).repeat(1, self.NpS).to(torch.int64)
+        if self.class_num > 1:
+            NpS = predict.shape[1]
+            r_batch = r_batch.unsqueeze(-1).repeat(1, NpS).to(torch.int64)
             r_batch = r_batch.view(-1)
             predict = predict.view(-1, self.class_num)
             loss = F.cross_entropy(predict, r_batch)

@@ -15,7 +15,7 @@ np.random.seed(2024)
 def get_args():
     parser = argparse.ArgumentParser()
     # environment config
-    parser.add_argument("--game", type=str, default="Synthetic-v1")
+    parser.add_argument("--game", type=str, default="Synthetic-v3")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--n-features", type=int, default=100)
@@ -32,8 +32,8 @@ def get_args():
     parser.add_argument("--action-noise", type=str, default="sp")
     parser.add_argument("--update-noise", type=str, default="pm")
     parser.add_argument("--buffer-noise", type=str, default="sp")
-    parser.add_argument("--prior-scale", type=float, default=1.0)
-    parser.add_argument("--posterior-scale", type=float, default=1.0)
+    parser.add_argument("--prior-scale", type=float, default=0.1)
+    parser.add_argument("--posterior-scale", type=float, default=0.1)
     parser.add_argument("--based-prior", type=int, default=0, choices=[0, 1])
     parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
     parser.add_argument("--lmcts-beta", type=float, default=0.01)
@@ -52,7 +52,7 @@ def get_args():
     # update config
     parser.add_argument("--update-start", type=int, default=128)
     parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--update-freq", type=int, default=1)
+    parser.add_argument("--update-freq", type=int, default=10)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
@@ -116,6 +116,7 @@ based_param = {
     "posterior_scale": args.posterior_scale,
     "feature_sg": args.feature_sg,
     "hidden_sizes": args.hidden_sizes,
+    "class_num": 2 if args.game.endswith("v3") else 1,
     "optim": args.optim,
     "lr": args.lr,
     "batch_size": args.batch_size,
@@ -136,7 +137,6 @@ param = {
         **based_param,
         "action_noise": "gs",
         "update_noise": "gs",
-        "class_num": 2 if args.game.endswith("v3") else 1,
     },
     "Ensemble": {
         **based_param,

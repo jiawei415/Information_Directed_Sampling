@@ -149,6 +149,7 @@ class HyperLinear(nn.Module):
         self,
         noise_dim,
         out_features,
+        action_num: int = 1,
         prior_std: float = 1.0,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
@@ -159,6 +160,7 @@ class HyperLinear(nn.Module):
         hyperlayer_params = dict(
             noise_dim=noise_dim,
             hidden_dim=out_features,
+            action_dim=action_num,
             prior_std=prior_std,
             out_type="weight",
             use_bias=use_bias,
@@ -171,6 +173,8 @@ class HyperLinear(nn.Module):
             **hyperlayer_params, trainable=False, weight_init="sDB"
         )
 
+        self.hidden_dim = out_features
+        self.action_num = action_num
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
 
@@ -178,23 +182,31 @@ class HyperLinear(nn.Module):
         theta = self.hyper_weight(z)
         prior_theta = self.prior_weight(z)
 
-        if len(x.shape) > 2:
-            # compute feel-good term
-            out = torch.einsum("bd,bad -> ba", theta, x)
-            prior_out = torch.einsum("bd,bad -> ba", prior_theta, prior_x)
-        elif x.shape[0] != z.shape[0]:
-            # compute action value for one action set
-            out = torch.mm(theta, x.T).squeeze(0)
-            prior_out = torch.mm(prior_theta, prior_x.T).squeeze(0)
-        elif x.shape == theta.shape:
-            out = torch.sum(x * theta, -1)
-            prior_out = torch.sum(prior_x * prior_theta, -1)
-        else:
-            # compute predict reward in batch
-            out = torch.bmm(theta, x.unsqueeze(-1)).squeeze(-1)
-            prior_out = torch.bmm(prior_theta, prior_x.unsqueeze(-1)).squeeze(-1)
+        theta = theta.view(theta.shape[0], -1, self.action_num, self.hidden_dim)
+        prior_theta = prior_theta.view(prior_theta.shape[0], -1, self.action_num, self.hidden_dim)
+
+        out = torch.einsum("bd,bnad -> bna", x, theta)
+        prior_out = torch.einsum("bd,bnad -> bna", prior_x, prior_theta)
+
+        # if len(x.shape) > 2:
+        #     # compute feel-good term
+        #     out = torch.einsum("bd,bad -> ba", theta, x)
+        #     prior_out = torch.einsum("bd,bad -> ba", prior_theta, prior_x)
+        # elif x.shape[0] != z.shape[0]:
+        #     # compute action value for one action set
+        #     out = torch.mm(theta, x.T).squeeze(0)
+        #     prior_out = torch.mm(prior_theta, prior_x.T).squeeze(0)
+        # elif x.shape == theta.shape:
+        #     out = torch.sum(x * theta, -1)
+        #     prior_out = torch.sum(prior_x * prior_theta, -1)
+        # else:
+        #     # compute predict reward in batch
+        #     out = torch.bmm(theta, x.unsqueeze(-1)).squeeze(-1)
+        #     prior_out = torch.bmm(prior_theta, prior_x.unsqueeze(-1)).squeeze(-1)
 
         out = self.posterior_scale * out + self.prior_scale * prior_out
+        # if self.action_num == 1:
+        #     out = out.squeeze(2)
         return out
 
     def get_thetas(self, z):
@@ -210,6 +222,7 @@ class HyperNet(nn.Module):
         in_features: int,
         hidden_sizes: Sequence[int] = (),
         noise_dim: int = 2,
+        action_num: int = 1,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         based_prior: float = False,
@@ -226,11 +239,12 @@ class HyperNet(nn.Module):
         feature_dim = in_features if len(hidden_sizes) == 0 else hidden_sizes[-1]
 
         if feature_sg:
-            self.based_out = nn.Linear(feature_dim, 1, bias=False)
+            self.based_out = nn.Linear(feature_dim, action_num, bias=False)
 
         self.hyper_out = HyperLinear(
             noise_dim,
             feature_dim,
+            action_num=action_num,
             prior_scale=prior_scale,
             posterior_scale=posterior_scale,
             use_bias=not feature_sg,
@@ -254,11 +268,16 @@ class HyperNet(nn.Module):
 
         if self.feature_sg:
             based_out = self.based_out(logits)
-            if len(z.shape) == 2:
-                based_out = based_out.squeeze(-1)
+            # if len(z.shape) == 2:
+            #     based_out = based_out.squeeze(-1)
             logits = logits.detach()
             hyper_out = self.hyper_out(z, logits, prior_logits)
+            if hyper_out.shape[1] == 1:
+                hyper_out = hyper_out.squeeze(1)
+            else:
+                based_out = based_out.unsqueeze(1)
             out = based_out + hyper_out
+            out = out.squeeze(-1)
         else:
             out = self.hyper_out(z, logits, prior_logits)
         return out

@@ -119,7 +119,7 @@ class EpiNet(nn.Module):
     def __init__(
         self,
         in_features: int,
-        class_num: int = 1,
+        action_num: int = 1,
         hidden_sizes: Sequence[int] = (),
         noise_dim: int = 2,
         prior_scale: float = 1.0,
@@ -130,20 +130,20 @@ class EpiNet(nn.Module):
         super().__init__()
 
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
-        self.based_out = nn.Linear(hidden_sizes[-1], class_num)
+        self.based_out = nn.Linear(hidden_sizes[-1], action_num)
 
         based_in_feature = self.based_out.in_features
         self.epi_out = EpiLinear(
             noise_dim,
             in_features,
             based_in_feature,
-            class_num,
+            action_num,
             [15, 15],
             prior_scale,
             posterior_scale,
             device=device,
         )
-        self.class_num = class_num
+        self.class_num = action_num
         self.feature_sg = feature_sg
         self.device = device
 

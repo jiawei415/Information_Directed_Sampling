@@ -15,7 +15,7 @@ method=Hyper
 # method=Ensemble
 
 cuda_id=0
-for game in Synthetic-v1
+for game in Synthetic-v3
 # for game in Synthetic-v1 Synthetic-v2 Synthetic-v4 Synthetic-v5 Synthetic-v6 FreqRusso Russo
 do
     export CUDA_VISIBLE_DEVICES=${cuda_id}
