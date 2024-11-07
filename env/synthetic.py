@@ -78,6 +78,9 @@ class SyntheticNonlinModel:
         else:
             self.all_actions = all_actions
 
+        self.eta = eta
+        self.alg_prior_sigma = sigma
+
         # feture
         self.set_feature()
 
@@ -123,8 +126,6 @@ class SyntheticNonlinModel:
             raise NotImplementedError
         self.set_reward()
 
-        self.eta = eta
-        self.alg_prior_sigma = sigma
         self.resample_feature = resample_feature
         self.set_context()
 
@@ -156,7 +157,7 @@ class SyntheticNonlinModel:
         torch.manual_seed(seed)
         torch.cuda.manual_seed(seed)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.reward_model = MLP(input_dim, output_dim, device=device).to(device)
+        self.reward_model = MLP(input_dim, output_dim, temperature=self.eta, device=device).to(device)
         print(str(self.reward_model))
 
     def reward_fn1(self, feature):
