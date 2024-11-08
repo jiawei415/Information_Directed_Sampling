@@ -279,5 +279,8 @@ class HyperNet(nn.Module):
             out = based_out + hyper_out
             out = out.squeeze(-1)
         else:
-            out = self.hyper_out(z, logits, prior_logits)
+            hyper_out = self.hyper_out(z, logits, prior_logits)
+            if hyper_out.shape[1] == 1:
+                hyper_out = hyper_out.squeeze(1)
+            out = hyper_out
         return out
