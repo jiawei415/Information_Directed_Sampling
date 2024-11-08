@@ -66,6 +66,11 @@ def get_args():
         args.prior_scale = 2.0
         args.posterior_scale = 1.0
         args.update_num = 20
+    elif args.game == "Synthetic-v3":
+        args.prior_scale = 0.1
+        args.posterior_scale = 0.1
+        args.update_num = 1
+        args.update_freq = 10
     elif args.game == "Synthetic-v4":
         args.prior_scale = 0.2
         args.posterior_scale = 0.1
@@ -166,7 +171,7 @@ base_config = {
 game_config = {
     "Synthetic-v1": {**base_config, "all_arms": args.all_arms},
     "Synthetic-v2": {**base_config, "all_arms": args.all_arms},
-    "Synthetic-v3": {**base_config, "all_arms": args.all_arms, "eta": 0.0},
+    "Synthetic-v3": {**base_config, "all_arms": args.all_arms},
     "Synthetic-v4": {**base_config, "all_arms": args.all_arms},
     "Synthetic-v5": {**base_config, "all_arms": args.all_arms},
     "Synthetic-v6": {**base_config, "all_arms": args.all_arms},
