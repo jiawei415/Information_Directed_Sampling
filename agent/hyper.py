@@ -1,10 +1,12 @@
 import numpy as np
+import time
 
 from tqdm import tqdm
 from utils import rd_argmax
 from agent.hypersolution import HyperSolution
 from agent.hyperllmsolution import HyperLLMSolution
 from agent.lmcts import LMCTS
+from agent.neuralUCB import NeuralUCB
 
 
 class HyperMAB:
@@ -287,7 +289,9 @@ class HyperMAB:
 
         log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        start_time = time.time()
         for t in range(T):
+            time_start = time.time()
             self.set_context()
             value = model.predict(self.features)
             if class_num > 1:
@@ -302,12 +306,15 @@ class HyperMAB:
             if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
                     model.update()
+            time_end = time.time()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
                 logger.record("reward", reward[t])
                 logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("time", time_end - time_start)
                 logger.dump(t)
+        logger.info("Total time: {}".format(time.time() - start_time))
         return reward, expected_regret
 
     def EpiNet(
@@ -361,7 +368,9 @@ class HyperMAB:
 
         log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        start_time = time.time()
         for t in range(T):
+            time_start = time.time()
             self.set_context()
             value = model.predict(self.features)
             if class_num > 1:
@@ -376,12 +385,15 @@ class HyperMAB:
             if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
                     model.update()
+            time_end = time.time()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
                 logger.record("reward", reward[t])
                 logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("time", time_end - time_start)
                 logger.dump(t)
+        logger.info("Total time: {}".format(time.time() - start_time))
         return reward, expected_regret
 
     def Ensemble(
@@ -437,7 +449,9 @@ class HyperMAB:
 
         log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        start_time = time.time()
         for t in range(T):
+            time_start = time.time()
             self.set_context()
             value = model.predict(self.features)
             a_t = rd_argmax(value)
@@ -450,12 +464,15 @@ class HyperMAB:
             if t >= update_start and (t + 1) % update_freq == 0:
                 for _ in range(update_num):
                     model.update()
+            time_end = time.time()
             if t == 0 or (t + 1) % log_interval == 0:
                 logger.record("step", t + 1)
                 logger.record("reward", reward[t])
                 logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("time", time_end - time_start)
                 logger.dump(t)
+        logger.info("Total time: {}".format(time.time() - start_time))
         return reward, expected_regret
 
     def LMCTS(
@@ -534,6 +551,87 @@ class HyperMAB:
                 logger.record("regret", expected_regret[t])
                 logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
                 logger.dump(t)
+        return reward, expected_regret
+
+
+    def NeuralUCB(
+        self,
+        T,
+        logger,
+        noise_dim=2,
+        NpS=20,
+        z_coef=None,
+        action_noise="pn",
+        update_noise="gs",
+        buffer_noise="sp",
+        prior_scale=1.0,
+        posterior_scale=1.0,
+        hidden_sizes=(),
+        optim="Adam",
+        lr=0.01,
+        batch_size=32,
+        weight_decay=0.0,
+        buffer_size=None,
+        update_num=2,
+        update_start=32,
+        update_freq=1,
+        nu=0.01,
+    ):
+        z_coef = z_coef if z_coef is not None else self.eta
+        buffer_size = buffer_size or T
+        model = NeuralUCB(
+            n_action=self.n_a,
+            n_feature=self.d,
+            noise_dim=noise_dim,
+            NpS=NpS,
+            noise_coef=z_coef,
+            action_noise=action_noise,
+            update_noise=update_noise,
+            buffer_noise=buffer_noise,
+            prior_scale=prior_scale,
+            posterior_scale=posterior_scale,
+            hidden_sizes=hidden_sizes,
+            optim=optim,
+            lr=lr,
+            batch_size=batch_size,
+            weight_decay=weight_decay,
+            buffer_size=buffer_size,
+            model_type="linear",
+            nu=nu,
+            logger=logger,
+        )
+
+        update_step = 0
+        log_interval = T // 1000
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        start_time = time.time()
+        for t in range(T):
+            time_start = time.time()
+            self.set_context()
+            a_t = model.predict(self.features)
+            f_t, r_t = self.features[a_t], self.reward(a_t)
+            reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
+
+            transitions = {"f": f_t, "r": r_t, "a": a_t}
+            # update hypermodel
+            if t < 2000:
+                loss = model.put(transitions)
+                model.update()
+                update_step += 1
+            else:
+                if t % 100 == 0:
+                    loss = model.put(transitions)
+                    model.update()
+                    update_step += 1
+            time_end = time.time()
+            if t == 0 or (t + 1) % log_interval == 0:
+                logger.record("step", t + 1)
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
+                logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("time", time_end - time_start)
+                logger.dump(t)
+        logger.info("Total time: {}".format(time.time() - start_time))
         return reward, expected_regret
 
     def computeVIDS_v1(self, thetas):

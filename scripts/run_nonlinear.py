@@ -37,6 +37,7 @@ def get_args():
     parser.add_argument("--based-prior", type=int, default=0, choices=[0, 1])
     parser.add_argument("--feature-sg", type=int, default=1, choices=[0, 1])
     parser.add_argument("--lmcts-beta", type=float, default=0.01)
+    parser.add_argument("--NUCB-nu", type=float, default=1.0)
     # model config
     parser.add_argument("--hidden-size", type=int, default=64)
     parser.add_argument("--hidden-layer", type=int, default=2)
@@ -52,7 +53,7 @@ def get_args():
     # update config
     parser.add_argument("--update-start", type=int, default=128)
     parser.add_argument("--update-num", type=int, default=1)
-    parser.add_argument("--update-freq", type=int, default=10)
+    parser.add_argument("--update-freq", type=int, default=1)
     # other config
     parser.add_argument("--seed", type=int, default=2023)
     parser.add_argument("--n-expe", type=int, default=1)
@@ -153,7 +154,14 @@ param = {
     "LMCTS": {
         **based_param,
         "prior_scale": 0.0,
+        "batch_size": 0,
         "beta_inv": args.lmcts_beta,
+    },
+    "NeuralUCB": {
+        **based_param,
+        "prior_scale": 0.0,
+        "batch_size": 0,
+        "nu": args.NUCB_nu,
     },
 }
 
