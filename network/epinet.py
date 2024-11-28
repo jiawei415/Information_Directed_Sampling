@@ -156,10 +156,7 @@ class EpiNet(nn.Module):
             logits = logits.detach()
         epi_out = self.epi_out(x, logits, z)
         out = epi_out + based_out.unsqueeze(1)
-        if self.class_num > 1:
-            out = torch.softmax(out, dim=-1)
-        else:
-            out = out.squeeze(-1)
+        out = out.squeeze(-1)
         if out.shape[1] == 1 and z.shape[0] == 1:
             out = out.squeeze(1)
         return out
