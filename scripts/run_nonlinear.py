@@ -15,7 +15,7 @@ np.random.seed(2024)
 def get_args():
     parser = argparse.ArgumentParser()
     # environment config
-    parser.add_argument("--game", type=str, default="Synthetic-v3")
+    parser.add_argument("--game", type=str, default="Synthetic-v1")
     parser.add_argument("--time-period", type=int, default=1000)
     parser.add_argument("--n-context", type=int, default=1)
     parser.add_argument("--n-features", type=int, default=100)

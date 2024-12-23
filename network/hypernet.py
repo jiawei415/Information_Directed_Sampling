@@ -283,4 +283,5 @@ class HyperNet(nn.Module):
             if hyper_out.shape[1] == 1:
                 hyper_out = hyper_out.squeeze(1)
             out = hyper_out
+            out = out.squeeze(-1)
         return out
