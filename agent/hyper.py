@@ -240,6 +240,7 @@ class HyperMAB:
         self,
         T,
         logger,
+        log_interval=1000,
         noise_dim=2,
         NpS=20,
         z_coef=None,
@@ -287,7 +288,6 @@ class HyperMAB:
             logger=logger,
         )
 
-        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         start_time = time.time()
         for t in range(T):
@@ -321,6 +321,7 @@ class HyperMAB:
         self,
         T,
         logger,
+        log_interval=1000,
         noise_dim=2,
         NpS=20,
         z_coef=None,
@@ -366,7 +367,6 @@ class HyperMAB:
             logger=logger,
         )
 
-        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         start_time = time.time()
         for t in range(T):
@@ -400,6 +400,7 @@ class HyperMAB:
         self,
         T,
         logger,
+        log_interval=1000,
         noise_dim=2,
         NpS=20,
         z_coef=None,
@@ -447,7 +448,6 @@ class HyperMAB:
             logger=logger,
         )
 
-        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         start_time = time.time()
         for t in range(T):
@@ -479,6 +479,7 @@ class HyperMAB:
         self,
         T,
         logger,
+        log_interval=1000,
         noise_dim=2,
         NpS=20,
         z_coef=None,
@@ -523,7 +524,6 @@ class HyperMAB:
         )
 
         update_step = 0
-        log_interval = T // 1000
         reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
         for t in range(T):
             self.set_context()
