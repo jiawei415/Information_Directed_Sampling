@@ -3,6 +3,7 @@ from typing import Sequence, Union
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
@@ -19,6 +20,43 @@ def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
         model += [nn.Linear(hidden_sizes[-1], out_dim, bias=bias)]
     return nn.Sequential(*model)
 
+class VectorizedLinear(nn.Module):
+    def __init__(self, in_features: int, out_features: int, ensemble_size: int):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.ensemble_size = ensemble_size
+
+        self.weight = nn.Parameter(
+            torch.empty(ensemble_size, out_features, in_features)
+        )
+        self.bias = nn.Parameter(torch.empty(ensemble_size, 1, out_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        # default pytorch init for nn.Linear module
+        for layer in range(self.ensemble_size):
+            nn.init.kaiming_uniform_(self.weight[layer], a=np.sqrt(5))
+
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight[0])
+        bound = 1 / np.sqrt(fan_in) if fan_in > 0 else 0
+        nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = torch.bmm(x, self.weight.transpose(1, 2)) + self.bias
+        # if z.shape[0] == 1:
+        #     enemble_index = int(np.where(z == 1)[1])
+        #     out = F.linear(x, self.weight[enemble_index], self.bias[enemble_index])
+        # else:
+        #     out = torch.bmm(x, self.weight.transpose(1, 2)) + self.bias.unsqueeze(1)
+        #     out = out.transpose(0, 1)
+        #     # out = torch.einsum("eio,bi->beo", self.weight.transpose(1, 2), x) + self.bias.unsqueeze(0)
+        return out
+
+    def extra_repr(self) -> str:
+        return 'ensemble_size={}, in_features={}, out_features={}, bias={}'.format(
+            self.ensemble_size, self.in_features, self.out_features, self.bias is not None
+        )
 
 class EnsembleNet(nn.Module):
     def __init__(
@@ -34,21 +72,25 @@ class EnsembleNet(nn.Module):
     ):
         super().__init__()
         feature_dim = hidden_sizes[-1] if len(hidden_sizes) > 0 else in_features
+        ensemble_sizes = [feature_dim] + ensemble_sizes
+
         self.basedmodel = mlp(in_features, 0, hidden_sizes)
-        self.out = nn.ModuleList(
-            [
-                mlp(feature_dim, action_num, ensemble_sizes)
-                for _ in range(noise_dim)
-            ]
-        )
+        out = []
+        for i in range(len(ensemble_sizes) - 1):
+            out.append(VectorizedLinear(ensemble_sizes[i], ensemble_sizes[i + 1], noise_dim))
+            out.append(nn.ReLU(inplace=True))
+        out.append(VectorizedLinear(ensemble_sizes[-1], action_num, noise_dim))
+        self.out = nn.Sequential(*out)
+
         if prior_scale > 0:
             self.priormodel = mlp(in_features, 0, hidden_sizes)
-            self.prior_out = nn.ModuleList(
-                [
-                    mlp(feature_dim, action_num, ensemble_sizes)
-                    for _ in range(noise_dim)
-                ]
-            )
+            prior_out = []
+            for i in range(len(ensemble_sizes) - 1):
+                prior_out.append(VectorizedLinear(ensemble_sizes[i], ensemble_sizes[i + 1], noise_dim))
+                prior_out.append(nn.ReLU(inplace=True))
+            prior_out.append(VectorizedLinear(ensemble_sizes[-1], action_num, noise_dim))
+            self.prior_out = nn.Sequential(*prior_out)
+
             for param in self.priormodel.parameters():
                 param.requires_grad = False
             for param in self.prior_out.parameters():
@@ -59,7 +101,7 @@ class EnsembleNet(nn.Module):
         self.posterior_scale = posterior_scale
         self.device = device
 
-        self.reset_parameters()
+        # self.reset_parameters()
 
     def reset_parameters(self):
         for name, param in self.out.named_parameters():
@@ -77,21 +119,16 @@ class EnsembleNet(nn.Module):
     def forward(self, z, x):
         x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
         logits = self.basedmodel(x)
+        logits = logits.unsqueeze(0).repeat_interleave(self.ensemble_num, dim=0)
+        out = self.out(logits)
+        if self.prior_scale > 0:
+            prior_logits = self.priormodel(x)
+            prior_logits = prior_logits.unsqueeze(0).repeat_interleave(self.ensemble_num, dim=0)
+            prior_out = self.prior_out(prior_logits)
+            out = self.posterior_scale * out + self.prior_scale * prior_out
         if z.shape[0] == 1:
-            ensemble_index = int(np.where(z == 1)[1])
-            out = self.out[ensemble_index](logits)
-            if self.prior_scale > 0:
-                prior_logits = self.priormodel(x)
-                prior_out = self.prior_out[ensemble_index](prior_logits)
-                out = self.posterior_scale * out + self.prior_scale * prior_out
+            enemble_index = int(np.where(z == 1)[1])
+            out = out[enemble_index]
         else:
-            out = [self.out[k](logits) for k in range(self.ensemble_num)]
-            out = torch.stack(out, dim=1)
-            if self.prior_scale > 0:
-                prior_logits = self.priormodel(x)
-                prior_out = [
-                    self.prior_out[k](prior_logits) for k in range(self.ensemble_num)
-                ]
-                prior_out = torch.stack(prior_out, dim=1)
-                out = self.posterior_scale * out + self.prior_scale * prior_out
+            out = out.transpose(0, 1)
         return out.squeeze(-1)

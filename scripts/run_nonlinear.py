@@ -107,7 +107,7 @@ def get_args():
 
 args = get_args()
 
-tag = f"{args.game.lower()}_{args.method}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
+tag = f"{args.game.lower()}_{args.method}_M{args.noise_dim}_{args.seed}_{time.strftime('%Y%m%d%H%M%S', time.localtime())}"
 path = os.path.expanduser(os.path.join(args.log_dir, args.game, tag))
 os.makedirs(path, exist_ok=True)
 
