@@ -9,6 +9,7 @@ import numpy as np
 import argparse
 import expe as exp
 import utils
+import itertools as it
 
 np.random.seed(2024)
 
@@ -102,6 +103,16 @@ def get_args():
         args.prior_scale = 5.0
         args.posterior_scale = 1.0
         args.update_num = 10
+    if args.update_noise == "pm":
+        args.NpS = args.noise_dim * 2
+    elif args.update_noise == "oh":
+        args.NpS = args.noise_dim
+    elif args.update_noise == "sps":
+        args.NpS = len(list(it.combinations(list(range(args.noise_dim)), 2))) * len(list(it.product([1, -1], repeat=2)))
+    elif args.update_noise == "spc":
+        args.NpS = len(list(it.combinations(list(range(args.noise_dim)), 2))) * 2
+    elif args.update_noise == "pn":
+        args.NpS = len(list((it.product(range(2), repeat=args.noise_dim))))
     return args
 
 

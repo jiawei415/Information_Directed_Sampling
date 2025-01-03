@@ -19,6 +19,36 @@ def mlp(inp_dim, out_dim, hidden_sizes, bias=True):
         model += [nn.Linear(hidden_sizes[-1], out_dim, bias=bias)]
     return nn.Sequential(*model)
 
+class VectorizedLinear(nn.Module):
+    def __init__(self, in_features: int, out_features: int, ensemble_size: int):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.ensemble_size = ensemble_size
+
+        self.weight = nn.Parameter(
+            torch.empty(ensemble_size, out_features, in_features)
+        )
+        self.bias = nn.Parameter(torch.empty(ensemble_size, 1, out_features))
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        # default pytorch init for nn.Linear module
+        for layer in range(self.ensemble_size):
+            nn.init.kaiming_uniform_(self.weight[layer], a=np.sqrt(5))
+
+        fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight[0])
+        bound = 1 / np.sqrt(fan_in) if fan_in > 0 else 0
+        nn.init.uniform_(self.bias, -bound, bound)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        out = torch.bmm(x, self.weight.transpose(1, 2)) + self.bias
+        return out
+
+    def extra_repr(self) -> str:
+        return 'ensemble_size={}, in_features={}, out_features={}, bias={}'.format(
+            self.ensemble_size, self.in_features, self.out_features, self.bias is not None
+        )
 
 class EnsemblePrior(nn.Module):
     def __init__(
@@ -30,23 +60,24 @@ class EnsemblePrior(nn.Module):
         ensemble_sizes: Sequence[int] = [5, 5],
     ):
         super().__init__()
-        self.basedmodel = nn.ModuleList(
-            [
-                mlp(in_features, out_features, ensemble_sizes)
-                for _ in range(ensemble_num)
-            ]
-        )
+        ensemble_sizes = [in_features] + ensemble_sizes + [out_features]
+        layers = []
+        for i in range(len(ensemble_sizes) - 1):
+            layers.append(VectorizedLinear(ensemble_sizes[i], ensemble_sizes[i + 1], ensemble_num))
+            if i < len(ensemble_sizes) - 2:
+                layers.append(nn.ReLU(inplace=True))
+        self.basedmodel = nn.Sequential(*layers)
 
         self.device = device
         self.ensemble_num = ensemble_num
-        self.head_list = list(range(self.ensemble_num))
 
     def forward(
         self, x: torch.Tensor, noise: torch.Tensor = None
     ) -> Tuple[torch.Tensor, Any]:
-        out = [self.basedmodel[k](x) for k in self.head_list]
-        out = torch.stack(out, 1)
-        out = torch.einsum("bzc, bnz -> bnc", out, noise)
+        x = x.unsqueeze(0).repeat_interleave(self.ensemble_num, dim=0)
+        out = self.basedmodel(x)
+        out = out.transpose(0, 1)
+        out = torch.bmm(noise, out)
         return out
 
 

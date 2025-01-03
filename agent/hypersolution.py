@@ -246,7 +246,7 @@ class HyperSolution:
             NpS = predict.shape[1]
             r_batch = r_batch.unsqueeze(-1).repeat(1, NpS).to(torch.int64)
             r_batch = r_batch.view(-1)
-            predict = predict.view(-1, self.class_num)
+            predict = predict.contiguous().view(-1, self.class_num)
             loss = F.cross_entropy(predict, r_batch)
         else:
             diff = target_noise.squeeze(-1) + r_batch.unsqueeze(-1) - predict
