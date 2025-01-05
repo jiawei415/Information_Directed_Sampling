@@ -26,7 +26,8 @@ def get_args():
     parser.add_argument("--eta", type=float, default=0.1)
     parser.add_argument("--sigma", type=float, default=1.0)
     # algorithm config
-    parser.add_argument("--method", type=str, default="Hyper")
+    parser.add_argument("--method", type=str, default="Hyper",
+                        choices=["TS", "Hyper", "EpiNet", "Ensemble", "LMCTS", "NeuralUCB"])
     parser.add_argument("--noise-dim", type=int, default=8)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--z-coef", type=float, default=0.01)

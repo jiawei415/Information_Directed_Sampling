@@ -138,6 +138,14 @@ class EpiLinear(nn.Module):
         epinet_inp = epinet_inp.unsqueeze(1).repeat(1, z.shape[1], 1)
         epinet_inp = torch.cat([epinet_inp, z], dim=-1)
         out = self.epinet(epinet_inp)
+
+        # # for flops
+        # out = out.view(-1, self.noise_dim,  self.class_num)  # b * s, n , a
+        # out = out.transpose(1, 2)  # b * s,  a, n
+        # b_z = z.view(-1, self.noise_dim).unsqueeze(-1)  # bs, n, 1
+        # out = torch.bmm(out, b_z).squeeze(-1) # bs, a
+        # out = out.view(batch_size, -1, self.class_num)
+
         out = out.view(batch_size, -1, self.noise_dim, self.class_num)
         out = torch.einsum("bsna, bsn -> bsa", out, z)
         if self.prior_scale > 0:

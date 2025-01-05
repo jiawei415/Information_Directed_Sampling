@@ -185,6 +185,20 @@ class HyperLinear(nn.Module):
         theta = theta.view(theta.shape[0], -1, self.action_num, self.hidden_dim)
         prior_theta = prior_theta.view(prior_theta.shape[0], -1, self.action_num, self.hidden_dim)
 
+        # # for flops
+        # nps = theta.shape[1]
+        # x = x.unsqueeze(1).expand(-1, nps, -1) # [batch, nps, dim]
+        # x = x.reshape(-1, x.shape[-1]).unsqueeze(-1) # [batch * nps, dim, 1]
+        # theta = theta.reshape(-1, theta.shape[-2], theta.shape[-1]) # [batch * nps, action, dim]
+        # prior_x = prior_x.unsqueeze(1).expand(-1, nps, -1) # [batch, nps, dim]
+        # prior_x = prior_x.reshape(-1, prior_x.shape[-1]).unsqueeze(-1) # [batch * nps, dim, 1]
+        # prior_theta = prior_theta.reshape(-1, prior_theta.shape[-2], prior_theta.shape[-1]) # [batch * nps, action, dim]
+
+        # out = torch.bmm(theta, x).squeeze(-1)
+        # prior_out = torch.bmm(prior_theta, prior_x).squeeze(-1)
+        # out = out.view(-1, nps, self.action_num)
+        # prior_out = prior_out.view(-1, nps, self.action_num)
+
         out = torch.einsum("bd,bnad -> bna", x, theta)
         prior_out = torch.einsum("bd,bnad -> bna", prior_x, prior_theta)
 

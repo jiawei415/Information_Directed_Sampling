@@ -127,7 +127,10 @@ class EnsembleNet(nn.Module):
             prior_out = self.prior_out(prior_logits)
             out = self.posterior_scale * out + self.prior_scale * prior_out
         if z.shape[0] == 1:
-            enemble_index = int(np.where(z == 1)[1])
+            if isinstance(z, np.ndarray):
+                enemble_index = int(np.where(z == 1)[1])
+            elif isinstance(z, torch.Tensor):
+                enemble_index = int(torch.where(z == 1)[1])
             out = out[enemble_index]
         else:
             out = out.transpose(0, 1)
