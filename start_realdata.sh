@@ -1,12 +1,14 @@
 id=$1
 log_dir="/apdcephfs/share_1563664/ztjiaweixu/bandit_sz/2024$id"
 
+log_interval=10
 time_period=10000
 NpS=16
 noise_dim=8
 action_noise=sp
 update_noise=pm
 buffer_noise=sp
+# method=Greedy
 method=Hyper
 # method=EpiNet
 # method=Ensemble
@@ -23,13 +25,14 @@ for game in RealData-v1
 do
     export CUDA_VISIBLE_DEVICES=${cuda_id}
     seed=0
-    for i in $(seq 5)
+    for i in $(seq 10)
     do
         tag=$(date "+%Y%m%d%H%M%S")
         python -m scripts.run_nonlinear --game=${game} --method=${method} --seed=${seed} \
             --time-period=${time_period} \
             --noise-dim=${noise_dim} --NpS=${NpS} \
             --action-noise=${action_noise} --update-noise=${update_noise} --buffer-noise=${buffer_noise} \
+            --log-interval=${log_interval} --log-dir=${log_dir} \
             --log-dir=${log_dir} \
             > ~/logs/${game}_${tag}.out 2> ~/logs/${game}_${tag}.err &
         echo "run $method $game $cuda_id $seed $tag"

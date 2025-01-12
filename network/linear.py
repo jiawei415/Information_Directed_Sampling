@@ -23,14 +23,17 @@ class LinearNet(torch.nn.Module):
         self,
         in_features: int,
         hidden_sizes: Sequence[int] = (),
+        action_num: int = 1,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
         device: Union[str, int, torch.device] = "cpu",
+        **kwargs,
     ):
+        print(f"Unsed kwargs: {kwargs}")
         super(LinearNet, self).__init__()
-        self.basedmodel = mlp(in_features, 1, hidden_sizes)
+        self.basedmodel = mlp(in_features, action_num, hidden_sizes)
         if prior_scale > 0:
-            self.priormodel = mlp(in_features, 1, hidden_sizes)
+            self.priormodel = mlp(in_features, action_num, hidden_sizes)
             for param in self.priormodel.parameters():
                 param.requires_grad = False
         self.prior_scale = prior_scale

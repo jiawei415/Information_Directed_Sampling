@@ -3,6 +3,7 @@ import time
 
 from tqdm import tqdm
 from utils import rd_argmax
+from agent.greedysolution import GreedySolution
 from agent.hypersolution import HyperSolution
 from agent.hyperllmsolution import HyperLLMSolution
 from agent.lmcts import LMCTS
@@ -234,6 +235,70 @@ class HyperMAB:
                 for key, value in update_results.items():
                     logger.record(key, value)
                 logger.dump(t)
+        return reward, expected_regret
+
+    def Greedy(
+        self,
+        T,
+        logger,
+        log_interval=1000,
+        prior_scale=1.0,
+        posterior_scale=1.0,
+        hidden_sizes=(),
+        class_num=1,
+        optim="Adam",
+        lr=0.01,
+        batch_size=32,
+        weight_decay=0.0,
+        buffer_size=None,
+        update_num=2,
+        update_start=32,
+        update_freq=1,
+    ):
+        buffer_size = buffer_size or T
+        model = GreedySolution(
+            self.n_a,
+            self.d,
+            prior_scale=prior_scale,
+            posterior_scale=posterior_scale,
+            hidden_sizes=hidden_sizes,
+            class_num=class_num,
+            optim=optim,
+            lr=lr,
+            batch_size=batch_size,
+            weight_decay=weight_decay,
+            buffer_size=buffer_size,
+            model_type="linear",
+            logger=logger,
+        )
+
+        reward, expected_regret = np.zeros(T, dtype=np.float32), np.zeros(T, dtype=np.float32)
+        start_time = time.time()
+        for t in range(T):
+            time_start = time.time()
+            self.set_context()
+            value = model.predict(self.features)
+            if class_num > 1:
+                value = value[:, 1]
+            a_t = rd_argmax(value)
+            f_t, r_t = self.features[a_t], self.reward(a_t)
+            reward[t], expected_regret[t] = r_t, self.expect_regret(a_t, self.features)
+
+            transitions = {"f": f_t, "r": r_t, "a": a_t}
+            model.put(transitions)
+            # update hypermodel
+            if t >= update_start and (t + 1) % update_freq == 0:
+                for _ in range(update_num):
+                    model.update()
+            time_end = time.time()
+            if t == 0 or (t + 1) % log_interval == 0:
+                logger.record("step", t + 1)
+                logger.record("reward", reward[t])
+                logger.record("regret", expected_regret[t])
+                logger.record("acc_regret", np.cumsum(expected_regret[: t + 1])[-1])
+                logger.record("time", time_end - time_start)
+                logger.dump(t)
+        logger.info("Total time: {}".format(time.time() - start_time))
         return reward, expected_regret
 
     def Hyper(

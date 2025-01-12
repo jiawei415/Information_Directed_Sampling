@@ -27,8 +27,8 @@ def get_args():
     parser.add_argument("--sigma", type=float, default=1.0)
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper",
-                        choices=["TS", "Hyper", "EpiNet", "Ensemble", "LMCTS", "NeuralUCB"])
-    parser.add_argument("--noise-dim", type=int, default=8)
+                        choices=["TS", "Greedy", "Hyper", "EpiNet", "Ensemble", "LMCTS", "NeuralUCB"])
+    parser.add_argument("--noise-dim", type=int, default=1)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--action-noise", type=str, default="sp")
@@ -114,6 +114,8 @@ def get_args():
         args.NpS = len(list(it.combinations(list(range(args.noise_dim)), 2))) * 2
     elif args.update_noise == "pn":
         args.NpS = len(list((it.product(range(2), repeat=args.noise_dim))))
+    if args.method == "Greedy":
+        args.prior_scale = 0.0
     return args
 
 
@@ -149,6 +151,21 @@ based_param = {
 
 param = {
     "TS": {},
+    "Greedy": {
+        "prior_scale": args.prior_scale,
+        "posterior_scale": args.posterior_scale,
+        "hidden_sizes": args.hidden_sizes,
+        "class_num": 2 if args.game.endswith("v3") else 1,
+        "optim": args.optim,
+        "lr": args.lr,
+        "batch_size": args.batch_size,
+        "weight_decay": args.weight_decay,
+        "update_start": args.update_start,
+        "update_num": args.update_num,
+        "update_freq": args.update_freq,
+        "buffer_size": args.buffer_size,
+        "log_interval": args.log_interval,
+    },
     "Hyper": {
         **based_param,
         "based_prior": args.based_prior,

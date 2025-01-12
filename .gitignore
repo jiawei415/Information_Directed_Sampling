@@ -10,3 +10,5 @@ storage/
 *DS_Store*
 .vscode
 taiji
+tools
+figure*
