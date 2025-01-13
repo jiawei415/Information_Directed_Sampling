@@ -68,6 +68,7 @@ class EnsembleNet(nn.Module):
         noise_dim: int = 2,
         prior_scale: float = 1.0,
         posterior_scale: float = 1.0,
+        based_prior: float = False,
         device: Union[str, int, torch.device] = "cpu",
     ):
         super().__init__()
@@ -83,22 +84,23 @@ class EnsembleNet(nn.Module):
         self.out = nn.Sequential(*out)
 
         if prior_scale > 0:
-            self.priormodel = mlp(in_features, 0, hidden_sizes)
+            if based_prior:
+                self.priormodel = mlp(in_features, 0, hidden_sizes)
+                for param in self.priormodel.parameters():
+                    param.requires_grad = False
             prior_out = []
             for i in range(len(ensemble_sizes) - 1):
                 prior_out.append(VectorizedLinear(ensemble_sizes[i], ensemble_sizes[i + 1], noise_dim))
                 prior_out.append(nn.ReLU(inplace=True))
             prior_out.append(VectorizedLinear(ensemble_sizes[-1], action_num, noise_dim))
             self.prior_out = nn.Sequential(*prior_out)
-
-            for param in self.priormodel.parameters():
-                param.requires_grad = False
             for param in self.prior_out.parameters():
                 param.requires_grad = False
 
         self.ensemble_num = noise_dim
         self.prior_scale = prior_scale
         self.posterior_scale = posterior_scale
+        self.based_prior = based_prior
         self.device = device
 
         # self.reset_parameters()
@@ -122,8 +124,11 @@ class EnsembleNet(nn.Module):
         logits = logits.unsqueeze(0).repeat_interleave(self.ensemble_num, dim=0)
         out = self.out(logits)
         if self.prior_scale > 0:
-            prior_logits = self.priormodel(x)
-            prior_logits = prior_logits.unsqueeze(0).repeat_interleave(self.ensemble_num, dim=0)
+            if self.based_prior:
+                prior_logits = self.priormodel(x)
+                prior_logits = prior_logits.unsqueeze(0).repeat_interleave(self.ensemble_num, dim=0)
+            else:
+                prior_logits = logits.detach()
             prior_out = self.prior_out(prior_logits)
             out = self.posterior_scale * out + self.prior_scale * prior_out
         if z.shape[0] == 1:

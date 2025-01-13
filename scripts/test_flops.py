@@ -174,6 +174,7 @@ def get_args():
     elif args.method == "Ensemble":
         args.update_noise = "oh"
         args.action_noise = "oh"
+        args.based_prior = 1
     return args
 
 
@@ -197,7 +198,10 @@ if args.method == "Hyper":
 elif args.method == "EpiNet":
     Net = EpiNet
 elif args.method == "Ensemble":
-    model_param.update({"ensemble_sizes": args.ensemble_sizes})
+    model_param.update({
+        "ensemble_sizes": args.ensemble_sizes,
+        "based_prior": args.based_prior,
+    })
     Net = EnsembleNet
 else:
     raise NotImplementedError

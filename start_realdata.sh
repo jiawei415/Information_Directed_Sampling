@@ -33,7 +33,6 @@ do
             --noise-dim=${noise_dim} --NpS=${NpS} \
             --action-noise=${action_noise} --update-noise=${update_noise} --buffer-noise=${buffer_noise} \
             --log-interval=${log_interval} --log-dir=${log_dir} \
-            --log-dir=${log_dir} \
             > ~/logs/${game}_${tag}.out 2> ~/logs/${game}_${tag}.err &
         echo "run $method $game $cuda_id $seed $tag"
         let seed=$seed+1

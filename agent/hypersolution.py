@@ -189,7 +189,10 @@ class HyperSolution:
         elif self.model_type == "epinet":
             Net = EpiNet
         elif self.model_type == "ensemble":
-            model_param.update({"ensemble_sizes": self.ensemble_sizes})
+            model_param.update({
+                "ensemble_sizes": self.ensemble_sizes,
+                "based_prior": self.based_prior,
+            })
             Net = EnsembleNet
         else:
             raise NotImplementedError

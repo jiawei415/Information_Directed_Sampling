@@ -28,7 +28,7 @@ def get_args():
     # algorithm config
     parser.add_argument("--method", type=str, default="Hyper",
                         choices=["TS", "Greedy", "Hyper", "EpiNet", "Ensemble", "LMCTS", "NeuralUCB"])
-    parser.add_argument("--noise-dim", type=int, default=1)
+    parser.add_argument("--noise-dim", type=int, default=8)
     parser.add_argument("--NpS", type=int, default=16)
     parser.add_argument("--z-coef", type=float, default=0.01)
     parser.add_argument("--action-noise", type=str, default="sp")
@@ -80,17 +80,21 @@ def get_args():
         args.posterior_scale = 0.1
         args.update_num = 10
     elif args.game == "Synthetic-v5":
-        args.prior_scale = 5.0
-        args.posterior_scale = 1.0
+        if args.n_features == 100:
+            args.prior_scale = 5.0
+            args.posterior_scale = 1.0
+        elif args.n_features == 20:
+            args.prior_scale = 0.2
+            args.posterior_scale = 0.1
         args.update_num = 20
     elif args.game == "Synthetic-v6":
         args.prior_scale = 1.0
         args.posterior_scale = 1.0
         args.update_num = 20
     elif args.game == "RealData-v1":
-        args.prior_scale = 0.2
+        args.prior_scale = 1.0
         args.posterior_scale = 0.1
-        args.update_num = 50
+        args.update_num = 100
     elif args.game == "RealData-v3":
         args.prior_scale = 1.0
         args.posterior_scale = 0.1
@@ -116,6 +120,8 @@ def get_args():
         args.NpS = len(list((it.product(range(2), repeat=args.noise_dim))))
     if args.method == "Greedy":
         args.prior_scale = 0.0
+    if args.method == "Ensemble":
+        args.base_prior = 1
     return args
 
 
